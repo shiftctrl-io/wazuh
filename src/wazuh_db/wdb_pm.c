@@ -96,6 +96,386 @@ int wdb_delete_pm(int id) {
     return result;
 }
 
+/* Look for a policy monitoring entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_find(wdb_t * wdb, int pm_id, char * output) {
+
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_FIND) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_FIND];
+
+    sqlite3_bind_int(stmt, 1, pm_id);
+
+    switch (sqlite3_step(stmt)) {
+        case SQLITE_ROW:
+            snprintf(output,OS_MAXSTR,"%s",sqlite3_column_text(stmt, 1));
+            return 1;
+            break;
+        case SQLITE_DONE:
+            return 0;
+            break;
+        default:
+            merror(" at sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+            return -1;
+    }
+}
+
+/* Insert policy monitoring entry. Returns 0 on success or -1 on error (new) */
+int wdb_policy_monitoring_save(wdb_t * wdb, int id,int scan_id,char * title,char *description,char *rationale,char *remediation, char * file,char * directory,char * process,char * registry,char * reference,char * result) {
+
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_save(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_INSERT) < 0) {
+        mdebug1("at wdb_rootcheck_save(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_INSERT];
+
+    sqlite3_bind_int(stmt, 1, id);
+    sqlite3_bind_int(stmt, 2, scan_id);
+    sqlite3_bind_text(stmt, 3, title, -1, NULL);
+    sqlite3_bind_text(stmt, 4, description, -1, NULL);
+    sqlite3_bind_text(stmt, 5, rationale, -1, NULL);
+    sqlite3_bind_text(stmt, 6, remediation, -1, NULL);
+    sqlite3_bind_text(stmt, 7, file, -1, NULL);
+    sqlite3_bind_text(stmt, 8, directory, -1, NULL);
+    sqlite3_bind_text(stmt, 9, process, -1, NULL);
+    sqlite3_bind_text(stmt, 10, registry, -1, NULL);
+    sqlite3_bind_text(stmt, 11, reference, -1, NULL);
+    sqlite3_bind_text(stmt, 12, result, -1, NULL);
+    
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return 0;
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+/* Update global policy monitoring entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_global_update(wdb_t * wdb, int scan_id, char *name,char *description,char *references,int pass,int failed,int score) {
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_save(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_GLOBAL_UPDATE) < 0) {
+        mdebug1("at wdb_rootcheck_save(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_GLOBAL_UPDATE];
+
+    sqlite3_bind_int(stmt, 1, scan_id);
+    sqlite3_bind_text(stmt, 2, name, -1, NULL);
+    sqlite3_bind_text(stmt, 3, description, -1, NULL);
+    sqlite3_bind_text(stmt, 4, references, -1, NULL);
+    sqlite3_bind_int(stmt, 5, pass);
+    sqlite3_bind_int(stmt, 6, failed);
+    sqlite3_bind_int(stmt, 7, score);
+    sqlite3_bind_text(stmt, 8, name, -1, NULL);
+    
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return 0;
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+/* Look for a policy monitoring entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_global_find(wdb_t * wdb, char *name, char * output) {
+
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_GLOBAL_FIND) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_GLOBAL_FIND];
+
+    sqlite3_bind_text(stmt, 1, name, -1, NULL);
+
+    switch (sqlite3_step(stmt)) {
+        case SQLITE_ROW:
+            snprintf(output,OS_MAXSTR,"%s",sqlite3_column_text(stmt, 1));
+            return 1;
+            break;
+        case SQLITE_DONE:
+            return 0;
+            break;
+        default:
+            merror(" at sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+            return -1;
+    }
+}
+
+/* Look for a scan policy monitoring entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_scan_find(wdb_t * wdb, char *module, char * output) {
+
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_FIND_SCAN) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_FIND_SCAN];
+
+    sqlite3_bind_text(stmt, 1, module, -1, NULL);
+
+    switch (sqlite3_step(stmt)) {
+        case SQLITE_ROW:
+            snprintf(output,OS_MAXSTR,"%s",sqlite3_column_text(stmt, 1));
+            return 1;
+            break;
+        case SQLITE_DONE:
+            return 0;
+            break;
+        default:
+            merror(" at sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+            return -1;
+    }
+}
+
+int wdb_policy_monitoring_policy_find(wdb_t * wdb, char *id, char * output) {
+
+      if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_POLICY_FIND) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_POLICY_FIND];
+
+    sqlite3_bind_text(stmt, 1, id, -1, NULL);
+
+    switch (sqlite3_step(stmt)) {
+        case SQLITE_ROW:
+            snprintf(output,OS_MAXSTR,"%s",sqlite3_column_text(stmt, 0));
+            return 1;
+            break;
+        case SQLITE_DONE:
+            return 0;
+            break;
+        default:
+            merror(" at sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+            return -1;
+    }
+}
+
+int wdb_policy_monitoring_compliance_save(wdb_t * wdb, int id_check, char *key, char *value) {
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_save(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_INSERT_COMPLIANCE) < 0) {
+        mdebug1("at wdb_rootcheck_save(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_INSERT_COMPLIANCE];
+
+    sqlite3_bind_int(stmt, 1, id_check);
+    sqlite3_bind_text(stmt, 2, key, -1, NULL);
+    sqlite3_bind_text(stmt, 3, value, -1, NULL);
+    
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return 0;
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+/* Insert policy entry. Returns 0 on success or -1 on error (new) */
+int wdb_policy_monitoring_policy_info_save(wdb_t * wdb,char *name,char * file,char * id,char * description,char *references ) {
+
+     if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_POLICY_INSERT) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_POLICY_INSERT];
+
+    sqlite3_bind_text(stmt, 1, name, -1, NULL);
+    sqlite3_bind_text(stmt, 2, file, -1, NULL);
+    sqlite3_bind_text(stmt, 3, id, -1, NULL);
+    sqlite3_bind_text(stmt, 4, description, -1, NULL);
+    sqlite3_bind_text(stmt, 5, references, -1, NULL);
+
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return 0;
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+/* Insert policy monitoring entry. Returns 0 on success or -1 on error (new) */
+int wdb_policy_monitoring_scan_info_save(wdb_t * wdb, int start_scan, int end_scan, int scan_id,char * policy_id,int pass,int fail,int score,char * hash) {
+
+     if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_SCAN_INFO_INSERT) < 0) {
+        mdebug1("cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_SCAN_INFO_INSERT];
+
+    sqlite3_bind_int(stmt, 1, start_scan);
+    sqlite3_bind_int(stmt, 2, end_scan);
+    sqlite3_bind_int(stmt, 3, scan_id);
+    sqlite3_bind_text(stmt, 4, policy_id, -1, NULL);
+    sqlite3_bind_int(stmt, 5, pass);
+    sqlite3_bind_int(stmt, 6, fail);
+    sqlite3_bind_int(stmt, 7, score);
+    sqlite3_bind_text(stmt, 8, hash, -1, NULL);
+
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return 0;
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+int wdb_policy_monitoring_scan_info_update(wdb_t * wdb, char * module, int end_scan){
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_update(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_SCAN_INFO_UPDATE) < 0) {
+        mdebug1("at wdb_rootcheck_update(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_SCAN_INFO_UPDATE];
+
+    sqlite3_bind_int(stmt, 1, end_scan);
+    sqlite3_bind_text(stmt, 2, module, -1, NULL);
+
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return sqlite3_changes(wdb->db);
+    } else {
+        merror("at wdb_rootcheck_update(): sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+int wdb_policy_monitoring_scan_info_update_start(wdb_t * wdb, char * policy_id, int start_scan,int end_scan,int scan_id,int pass,int fail,int score,char * hash) {
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_update(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_SCAN_INFO_UPDATE_START) < 0) {
+        mdebug1("at wdb_rootcheck_update(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_SCAN_INFO_UPDATE_START];
+
+    sqlite3_bind_int(stmt, 1, start_scan);
+    sqlite3_bind_int(stmt, 2, end_scan);
+    sqlite3_bind_int(stmt, 3, scan_id);
+    sqlite3_bind_int(stmt, 4, pass);
+    sqlite3_bind_int(stmt, 5, fail);
+    sqlite3_bind_int(stmt, 6, score);
+    sqlite3_bind_text(stmt, 7, hash, -1, NULL);
+    sqlite3_bind_text(stmt, 8, policy_id, -1, NULL);
+
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return sqlite3_changes(wdb->db);
+    } else {
+        merror("at wdb_rootcheck_update(): sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
+/* Update a policy monitoring entry. Returns affected rows on success or -1 on error (new) */
+int wdb_policy_monitoring_update(wdb_t * wdb, char * result, int id) {
+
+    if (!wdb->transaction && wdb_begin2(wdb) < 0){
+        mdebug1("at wdb_rootcheck_update(): cannot begin transaction");
+        return -1;
+    }
+
+    sqlite3_stmt *stmt = NULL;
+
+    if (wdb_stmt_cache(wdb, WDB_STMT_PM_UPDATE) < 0) {
+        mdebug1("at wdb_rootcheck_update(): cannot cache statement");
+        return -1;
+    }
+
+    stmt = wdb->stmt[WDB_STMT_PM_UPDATE];
+
+    sqlite3_bind_text(stmt, 1, result,-1, NULL);
+    sqlite3_bind_int(stmt, 2, id);
+
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        return sqlite3_changes(wdb->db);
+    } else {
+        merror("sqlite3_step(): %s", sqlite3_errmsg(wdb->db));
+        return -1;
+    }
+}
+
 /* Delete PM events of all agents */
 void wdb_delete_pm_all() {
     int *agents = wdb_get_all_agents();

@@ -436,4 +436,8 @@ https://www.gnu.org/licenses/gpl.html\n"
 
 #define CLOCK_LENGTH 256
 
+#define ROOTCHECKCFG_DIR   "/etc/rootcheck"
+
+#define CONFIGURATION_ASSESSMENT_DIR   "/ruleset/configuration_assessment"
+
 #endif /* __OS_HEADERS */

@@ -86,6 +86,19 @@ typedef enum wdb_stmt {
     WDB_STMT_SCAN_INFO_GET1C,
     WDB_STMT_SCAN_INFO_GET2C,
     WDB_STMT_SCAN_INFO_GET3C,
+    WDB_STMT_PM_FIND,
+    WDB_STMT_PM_UPDATE,
+    WDB_STMT_PM_INSERT,
+    WDB_STMT_PM_SCAN_INFO_INSERT,
+    WDB_STMT_PM_SCAN_INFO_UPDATE,
+    WDB_STMT_PM_GLOBAL_INSERT,
+    WDB_STMT_PM_GLOBAL_UPDATE,
+    WDB_STMT_PM_GLOBAL_FIND,
+    WDB_STMT_PM_INSERT_COMPLIANCE,
+    WDB_STMT_PM_FIND_SCAN,
+    WDB_STMT_PM_SCAN_INFO_UPDATE_START,
+    WDB_STMT_PM_POLICY_FIND,
+    WDB_STMT_PM_POLICY_INSERT,
     WDB_STMT_SIZE
 } wdb_stmt;
 
@@ -177,6 +190,42 @@ int wdb_insert_pm(sqlite3 *db, const rk_event_t *event);
 
 /* Update policy monitoring last date. Returns number of affected rows on success or -1 on error. */
 int wdb_update_pm(sqlite3 *db, const rk_event_t *event);
+
+/* Look for a policy monitoring entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_find(wdb_t * wdb, int pm_id, char * output);
+
+/* Update a policy monitoring entry. Returns ID on success or -1 on error (new) */
+int wdb_policy_monitoring_update(wdb_t * wdb, char * result, int pm_id);
+
+/* Insert policy monitoring entry. Returns ID on success or -1 on error (new) */
+int wdb_policy_monitoring_save(wdb_t * wdb, int id,int scan_id,char * title,char *description,char *rationale,char *remediation, char * file,char * directory,char * process,char * registry,char * reference,char * result);
+
+/* Insert scan info policy monitoring entry. Returns ID on success or -1 on error (new) */
+int wdb_policy_monitoring_scan_info_save(wdb_t * wdb, int start_scan, int end_scan, int scan_id,char * policy_id,int pass,int fail,int score,char * hash);
+
+/* Update scan info policy monitoring entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_scan_info_update(wdb_t * wdb, char * module, int end_scan);
+
+/* Look for a policy monitoring global entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_global_find(wdb_t * wdb, char *name, char * output);
+
+/* Insert global policy monitoring compliance entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_compliance_save(wdb_t * wdb, int id_check, char *key, char *value);
+
+/* Update global policy monitoring entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_global_update(wdb_t * wdb, int scan_id, char *name,char *description,char *references,int pass,int failed,int score);
+
+/* Look for a scan policy monitoring entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_scan_find(wdb_t * wdb, char *module, char * output);
+
+/* Update scan info policy monitoring entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_scan_info_update_start(wdb_t * wdb, char * policy_id, int start_scan,int end_scan,int scan_id,int pass,int fail,int score,char * hash);
+
+/* Look for a scan policy entry in Wazuh DB. Returns 1 if found, 0 if not, or -1 on error. (new) */
+int wdb_policy_monitoring_policy_find(wdb_t * wdb, char *id, char * output);
+
+/* Insert policy entry. Returns number of affected rows or -1 on error.  */
+int wdb_policy_monitoring_policy_info_save(wdb_t * wdb,char *name,char * file,char * id,char * description,char *references);
 
 /* Insert agent. It opens and closes the DB. Returns 0 on success or -1 on error. */
 int wdb_insert_agent(int id, const char *name, const char *ip, const char *key, const char *group, int keep_date);
@@ -431,6 +480,8 @@ int wdb_parse_ports(wdb_t * wdb, char * input, char * output);
 int wdb_parse_processes(wdb_t * wdb, char * input, char * output);
 
 int wdb_parse_ciscat(wdb_t * wdb, char * input, char * output);
+
+int wdb_parse_policy_monitoring(wdb_t * wdb, char * input, char * output);
 
 // Functions to manage scan_info table, this table contains the timestamp of every scan of syscheck ¿and syscollector?
 

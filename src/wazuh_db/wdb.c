@@ -65,7 +65,20 @@ static const char *SQL_STMT[] = {
     "SELECT end_scan FROM scan_info WHERE module = ?;",
     "SELECT fim_first_check FROM scan_info WHERE module = ?;",
     "SELECT fim_second_check FROM scan_info WHERE module = ?;",
-    "SELECT fim_third_check FROM scan_info WHERE module = ?;"
+    "SELECT fim_third_check FROM scan_info WHERE module = ?;",
+    "SELECT id,result FROM configuration_assessment_check WHERE id = ?;",
+    "UPDATE configuration_assessment_check SET result = ? WHERE id = ?;",
+    "INSERT INTO configuration_assessment_check (id,scan_id,title,description,rationale,remediation,file,directory,process,registry,`references`,result) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);",
+    "INSERT INTO configuration_assessment_scan_info (start_scan,end_scan,id,policy_id,pass,fail,score,hash) VALUES (?,?,?,?,?,?,?,?);",
+    "UPDATE configuration_assessment_scan_info SET start_scan = ?, end_scan = ?, id = ?, pass = ?, fail = ? , score = ?, hash = ? WHERE policy_id = ?;",
+    "INSERT INTO configuration_assessment_global (scan_id,name,description,`references`,pass,failed,score) VALUES(?,?,?,?,?,?,?);",
+    "UPDATE configuration_assessment_global SET scan_id = ?, name = ?, description = ?, `references` = ?, pass = ?, failed = ?, score = ? WHERE name = ?;",
+    "SELECT name FROM configuration_assessment_global WHERE name = ?;",
+    "INSERT INTO configuration_assessment_check_compliance (id_check,`key`,`value`) VALUES(?,?,?);",
+    "SELECT policy_id FROM configuration_assessment_scan_info WHERE policy_id = ?;",
+    "UPDATE configuration_assessment_scan_info SET start_scan = ?, end_scan = ?, id = ?, pass = ?, fail = ? , score = ?, hash = ? WHERE policy_id = ?;",
+    "SELECT id FROM configuration_assessment_policy WHERE id = ?;",
+    "INSERT INTO configuration_assessment_policy (name,file,id,description,`references`) VALUES(?,?,?,?,?);"
 };
 
 sqlite3 *wdb_global = NULL;
