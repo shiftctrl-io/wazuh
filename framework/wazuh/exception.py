@@ -146,7 +146,7 @@ class WazuhException(Exception):
         1901: '\'execq\' socket has not been created',
         1902: 'Could not connect to \'execq\' socket',
         1903: 'Error deleting temporary file from API',
-
+        1904: 'Could not connect to \'execa\' socket',
 
         # Database:
         2000: 'No such database file',

@@ -14,6 +14,7 @@ from wazuh import exception, agent, common, utils
 import logging
 import os
 import time
+import copy
 
 
 class DistributedAPI:
@@ -109,7 +110,7 @@ class DistributedAPI:
 
             timeout = None if self.input_json['arguments']['wait_for_complete'] \
                            else self.cluster_items['intervals']['communication']['timeout_api_exe']
-            local_args = self.input_json['arguments'].copy()
+            local_args = copy.deepcopy(self.input_json['arguments'])
             del local_args['wait_for_complete']  # local requests don't use this parameter
 
             if rq.functions[self.input_json['function']]['is_async']:
@@ -142,11 +143,11 @@ class DistributedAPI:
 
         :return: JSON response
         """
-        if 'xml_file' in self.input_json['arguments']:
+        if 'tmp_file' in self.input_json['arguments']:
             # POST/agent/group/:group_id/configuration and POST/agent/group/:group_id/file/:file_name API calls write
             # a temporary file in /var/ossec/tmp which needs to be sent to the master before forwarding the request
-            res = await self.node.send_file(common.ossec_path + self.input_json['arguments']['xml_file'])
-            os.remove(common.ossec_path + self.input_json['arguments']['xml_file'])
+            res = await self.node.send_file(common.ossec_path + self.input_json['arguments']['tmp_file'])
+            os.remove(common.ossec_path + self.input_json['arguments']['tmp_file'])
             if res.startswith('Error'):
                 return self.print_json(data=res.decode(), error=1000)
         return await self.node.execute(command=b'dapi', data=json.dumps(self.input_json).encode(),
