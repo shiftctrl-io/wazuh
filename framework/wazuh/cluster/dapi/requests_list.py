@@ -1,22 +1,24 @@
 # Copyright (C) 2015-2019, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is a free software; you can redistribute it and/or modify it under the terms of GPLv2
-from wazuh import Wazuh
-from wazuh import common
-from wazuh.agent import Agent
-from wazuh.rule import Rule
-from wazuh.decoder import Decoder
+
+import wazuh.active_response as active_response
+import wazuh.cdb_list as cdb_list
+import wazuh.ciscat as ciscat
 import wazuh.cluster.cluster as cluster
 import wazuh.cluster.control as cluster_control
 import wazuh.configuration as configuration
+import wazuh.configuration_assessment as configuration_assessment
 import wazuh.manager as manager
-import wazuh.stats as stats
 import wazuh.rootcheck as rootcheck
+import wazuh.stats as stats
 import wazuh.syscheck as syscheck
 import wazuh.syscollector as syscollector
-import wazuh.ciscat as ciscat
-import wazuh.active_response as active_response
-import wazuh.cdb_list as cdb_list
+from wazuh import Wazuh
+from wazuh import common
+from wazuh.agent import Agent
+from wazuh.decoder import Decoder
+from wazuh.rule import Rule
 
 # Requests types:
 #   * local_master       -> requests that must be executed in the master node.
@@ -440,6 +442,18 @@ functions = {
         'is_async': False
     },
 
+    # Configuration assessment
+    '/configuration_assessment/:agent_id': {
+        'function': configuration_assessment.get_pm_list,
+        'type': 'distributed_master',
+        'is_async': False
+    },
+    '/configuration_assessment/:agent_id/checks/:scan_id': {
+        'function': configuration_assessment.get_pm_checks,
+        'type': 'distributed_master',
+        'is_async': False
+    },
+
     # Rules
     '/rules': {
         'function': Rule.get_rules,
@@ -607,7 +621,7 @@ functions = {
         'function': cdb_list.get_path_lists,
         'type': 'local_master',
         'is_async': False
-    },
+    }
 
 
 }
