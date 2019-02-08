@@ -392,7 +392,7 @@ def validation():
         remove(api_socket_path)
     except OSError:
         if exists(api_socket_path):
-            raise WazuhException(1904)
+            raise WazuhException(1014)
 
     # up API socket
     try:
@@ -401,7 +401,7 @@ def validation():
         # timeout
         api_socket.settimeout(5)
     except socket.error:
-        raise WazuhException(1904)
+        raise WazuhException(1013)
 
     # connect to execq socket
     if exists(execq_socket_path):
@@ -409,7 +409,7 @@ def validation():
             execq_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
             execq_socket.connect(execq_socket_path)
         except socket.error:
-            raise WazuhException(1902)
+            raise WazuhException(1013)
     else:
         raise WazuhException(1901)
 
@@ -436,7 +436,12 @@ def validation():
         if exists(api_socket_path):
             remove(api_socket_path)
 
-    return _extract_logstest_errors(buffer.decode('utf-8'))
+    errors = _extract_logstest_errors(buffer.decode('utf-8'))
+
+    if len(errors) > 0:
+        return {'status': 'KO', 'details': errors}
+    else:
+        return {'status': 'OK'}
 
 
 def _extract_logstest_errors(output):
