@@ -243,7 +243,7 @@ class MasterHandler(server.AbstractServerHandler, c_common.WazuhCommon):
     def end_receiving_integrity_checksums(self, task_and_file_names: str) -> Tuple[bytes, bytes]:
         return super().end_receiving_file(task_and_file_names)
 
-    async def sync_worker_files(self, task_name: str, received_file: asyncio.Task, logger):
+    async def sync_worker_files(self, task_name: str, received_file: asyncio.Event, logger):
         logger.info("Waiting to receive zip file from worker")
         await received_file.wait()
         received_filename = self.sync_tasks[task_name].filename
@@ -258,21 +258,21 @@ class MasterHandler(server.AbstractServerHandler, c_common.WazuhCommon):
         self.process_files_from_worker(files_checksums, decompressed_files_path, logger)
         shutil.rmtree(decompressed_files_path)
 
-    async def sync_extra_valid(self, task_name: str, received_file: asyncio.Task):
+    async def sync_extra_valid(self, task_name: str, received_file: asyncio.Event):
         extra_valid_logger = self.task_loggers['Extra valid']
         self.sync_extra_valid_status['date_start_master'] = str(datetime.now())
         await self.sync_worker_files(task_name, received_file, extra_valid_logger)
         self.sync_extra_valid_free = True
         self.sync_extra_valid_status['date_end_master'] = str(datetime.now())
 
-    async def sync_agent_info(self, task_name: str, received_file: asyncio.Task):
+    async def sync_agent_info(self, task_name: str, received_file: asyncio.Event):
         agent_info_logger = self.task_loggers['Agent info']
         self.sync_agent_info_status['date_start_master'] = str(datetime.now())
         await self.sync_worker_files(task_name, received_file, agent_info_logger)
         self.sync_agent_info_free = True
         self.sync_agent_info_status['date_end_master'] = str(datetime.now())
 
-    async def sync_integrity(self, task_name: str, received_file: asyncio.Task):
+    async def sync_integrity(self, task_name: str, received_file: asyncio.Event):
         logger = self.task_loggers['Integrity']
 
         self.sync_integrity_status['date_start_master'] = str(datetime.now())
@@ -350,6 +350,7 @@ class MasterHandler(server.AbstractServerHandler, c_common.WazuhCommon):
                                                                                       data['merge_name']):
                         try:
                             full_unmerged_name = common.ossec_path + file_path
+                            tmp_unmerged_path = full_unmerged_name + '.tmp'
                             if is_agent_info:
                                 agent_name_re = re.match(r'(^.+)-(.+)$', os.path.basename(file_path))
                                 agent_name = agent_name_re.group(1) if agent_name_re else os.path.basename(file_path)
@@ -383,13 +384,14 @@ class MasterHandler(server.AbstractServerHandler, c_common.WazuhCommon):
                                     logger.debug2("Receiving an old file ({})".format(file_path))
                                     return
 
-                            with open(full_unmerged_name, 'wb') as f:
+                            with open(tmp_unmerged_path, 'wb') as f:
                                 f.write(file_data)
 
                             mtime_epoch = timegm(mtime.timetuple())
-                            os.utime(full_unmerged_name, (mtime_epoch, mtime_epoch))  # (atime, mtime)
-                            os.chown(full_unmerged_name, common.ossec_uid, common.ossec_gid)
-                            os.chmod(full_unmerged_name, self.cluster_items['files'][data['cluster_item_key']]['permissions'])
+                            os.utime(tmp_unmerged_path, (mtime_epoch, mtime_epoch))  # (atime, mtime)
+                            os.chown(tmp_unmerged_path, common.ossec_uid, common.ossec_gid)
+                            os.chmod(tmp_unmerged_path, self.cluster_items['files'][data['cluster_item_key']]['permissions'])
+                            os.rename(tmp_unmerged_path, full_unmerged_name)
                         except Exception as e:
                             self.logger.debug2("Error updating agent group/status: {}".format(e))
                             if is_agent_info:
