@@ -1,11 +1,7 @@
 # Copyright (C) 2015-2019, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is a free software; you can redistribute it and/or modify it under the terms of GPLv2
-<<<<<<< HEAD
 
-from datetime import datetime
-=======
->>>>>>> dev-rootcheck-pm
 from wazuh.utils import execute, previous_month, cut_array, sort_array, search_array, tail
 from wazuh.exception import WazuhException
 from wazuh.utils import load_wazuh_xml
