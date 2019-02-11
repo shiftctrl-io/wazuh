@@ -11,8 +11,8 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from wazuh import WazuhException
-from wazuh.configuration_assessment import WazuhDBQueryPM, get_pm_list, fields_translation_ca,\
-    get_pm_checks, fields_translation_ca_check, fields_translation_ca_check_compliance
+from wazuh.configuration_assessment import WazuhDBQueryPM, get_ca_list, fields_translation_ca,\
+    get_ca_checks, fields_translation_ca_check, fields_translation_ca_check_compliance
 
 test_data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 
@@ -58,12 +58,13 @@ class TestPolicyMonitoring(TestCase):
         """
         with patch('wazuh.configuration_assessment.WazuhDBConnection') as mock_wdb:
             mock_wdb.return_value.execute.side_effect = get_fake_pm_data
-            result = get_pm_list('000')
+            result = get_ca_list('000')
             assert(isinstance(result, dict))
             assert('totalItems' in result)
             assert(isinstance(result['totalItems'], int))
             assert('items' in result)
             assert(len(result['items']) > 0)
+            assert(len(result['items'])==result['totalItems'])
             pm = result['items'][0]
             assert(isinstance(pm, dict))
             assert(set(pm.keys()) == set(cols_returned_from_db_pm))
@@ -76,13 +77,14 @@ class TestPolicyMonitoring(TestCase):
         """
         with patch('wazuh.configuration_assessment.WazuhDBConnection') as mock_wdb:
             mock_wdb.return_value.execute.side_effect = get_fake_pm_data
-            fields = {'fields': ['name', 'id']}
-            result = get_pm_list('000', select=fields)
+            fields = {'fields': ['name', 'policy_id']}
+            result = get_ca_list('000', select=fields)
             assert (isinstance(result, dict))
             assert ('totalItems' in result)
             assert (isinstance(result['totalItems'], int))
             assert ('items' in result)
             assert (len(result['items']) > 0)
+            assert (len(result['items']) == result['totalItems'])
             pm = result['items'][0]
             assert (isinstance(pm, dict))
             assert (set(pm.keys()) == set(fields['fields']))
@@ -96,28 +98,31 @@ class TestPolicyMonitoring(TestCase):
         with patch('wazuh.configuration_assessment.WazuhDBConnection') as mock_wdb:
             mock_wdb.return_value.execute.side_effect = get_fake_pm_data
             search = {'value': 'debian', 'negation': False}
-            result = get_pm_list('000', search=search)
+            result = get_ca_list('000', search=search)
             assert (isinstance(result, dict))
             assert ('totalItems' in result)
             assert (isinstance(result['totalItems'], int))
             assert ('items' in result)
             assert (len(result['items']) > 0)
+            assert (len(result['items']) == result['totalItems'])
 
             search = {'value': 'foo', 'negation': False}
-            result = get_pm_list('000', search=search)
+            result = get_ca_list('000', search=search)
             assert (isinstance(result, dict))
             assert ('totalItems' in result)
             assert (isinstance(result['totalItems'], int))
             assert ('items' in result)
             assert (len(result['items']) == 0)
+            assert (len(result['items']) == result['totalItems'])
 
             search = {'value': 'foo', 'negation': True}
-            result = get_pm_list('000', search=search)
+            result = get_ca_list('000', search=search)
             assert (isinstance(result, dict))
             assert ('totalItems' in result)
             assert (isinstance(result['totalItems'], int))
             assert ('items' in result)
             assert (len(result['items']) > 0)
+            assert (len(result['items']) == result['totalItems'])
 
     @patch('socket.socket')
     @patch('wazuh.common.wdb_path', test_data_path)
@@ -127,19 +132,29 @@ class TestPolicyMonitoring(TestCase):
         """
         with patch('wazuh.configuration_assessment.WazuhDBConnection') as mock_wdb:
             mock_wdb.return_value.execute.side_effect = get_fake_pm_data
-            result = get_pm_checks(1907428094, agent_id='000')
-            assert(isinstance(result, list))
-            assert(len(result) > 0)
-            pm = result[0]
-            assert(isinstance(pm, dict))
-            assert(set(pm.keys()) == set(cols_returned_from_db_pm_check) | {'compliance'})
+            result = get_ca_checks('cis_debian', agent_id='000')
+            assert(isinstance(result, dict))
+            assert ('totalItems' in result)
+            assert (isinstance(result['totalItems'], int))
+            assert ('items' in result)
+            assert (len(result['items']) == result['totalItems'])
+            pm = result['items']
+            assert(isinstance(pm, list))
+            assert(len(pm) > 0)
+            assert(set(pm[0].keys()) == set(cols_returned_from_db_pm_check) | {'compliance'})
 
-            compliance = pm['compliance']
+            compliance = pm[0]['compliance']
             assert(isinstance(compliance, list))
             assert(len(compliance) > 0)
             assert(set(compliance[0].keys()) == set(fields_translation_ca_check_compliance.values()))
 
             # Check 0 result
-            result = get_pm_checks(99999999999, agent_id='000')
-            assert(isinstance(result, list))
-            assert(len(result) == 0)
+            result = get_ca_checks('not_exists', agent_id='000')
+            assert(isinstance(result, dict))
+            assert ('totalItems' in result)
+            assert (isinstance(result['totalItems'], int))
+            assert ('items' in result)
+            assert (len(result['items']) == result['totalItems'])
+            pm = result['items']
+            assert(isinstance(pm, list))
+            assert(len(pm) == 0)

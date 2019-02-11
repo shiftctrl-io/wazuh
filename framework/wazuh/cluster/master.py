@@ -196,7 +196,6 @@ class MasterHandler(server.AbstractServerHandler, c_common.WazuhCommon):
             cmd, res = self.get_nodes(api_call_info['arguments'])
             if api_call_info['function'] == '/cluster/nodes/:node_name':
                 res = res['items'][0] if len(res['items']) > 0 else {}
-
         return cmd, json.dumps({'error': 0, 'data': res}).encode()
 
     def get_nodes(self, arguments: Dict) -> Tuple[bytes, Dict]:

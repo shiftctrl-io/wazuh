@@ -1424,7 +1424,7 @@ install_python:
 python_dependencies := requirements.txt
 
 install_dependencies: install_python
-	cd ../framework && ${WPYTHON_DIR}/bin/pip3 install -r ${python_dependencies}
+	cd ../framework && ${WPYTHON_DIR}/bin/pip3 install -r ${python_dependencies} --index-url=file://${ROUTE_PATH}/${EXTERNAL_CPYTHON}/Dependencies/simple
 
 
 install_framework:
@@ -1600,7 +1600,7 @@ ifneq ($(wildcard external/cpython/*),)
 endif
 
 clean-deps:
-	rm -rf $(EXTERNAL_DIR)
+	rm -rf $(EXTERNAL_DIR) $(EXTERNAL_CPYTHON)
 
 clean-internals:
 	rm -f $(BUILD_SERVER)
