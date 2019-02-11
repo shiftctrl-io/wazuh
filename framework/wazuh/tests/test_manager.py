@@ -8,14 +8,15 @@ import re
 from unittest import TestCase
 from unittest.mock import patch
 
-
 from wazuh import WazuhException
 from wazuh.manager import upload_file, get_file, restart, validation
+
 
 
 test_data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 
 class TestManager(TestCase):
+
 
     def setUp(self):
         # path for temporary API files
