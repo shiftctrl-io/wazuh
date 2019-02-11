@@ -645,7 +645,7 @@ char * sys_deb_packages(int queue_fd, const char* LOCATION, int random_id){
                 if(object){
                     cJSON_Delete(object);
                 }
-                
+
                 object = cJSON_CreateObject();
                 package = cJSON_CreateObject();
                 cJSON_AddStringToObject(object, "type", "program");
@@ -1006,6 +1006,210 @@ void sys_network_linux(int queue_fd, const char* LOCATION){
         cJSON_AddStringToObject(object, "type", "network");
         cJSON_AddNumberToObject(object, "ID", random_id);
         cJSON_AddStringToObject(object, "timestamp", timestamp);
+        cJSON_AddItemToObject(object, "iface", interface);
+        cJSON_AddStringToObject(interface, "name", ifaces_list[i]);
+
+        /* Interface type */
+        char *type;
+        type = get_if_type(ifaces_list[i]);
+        cJSON_AddStringToObject(interface, "type", type);
+        free(type);
+
+        /* Operational state */
+        char *state;
+        state = get_oper_state(ifaces_list[i]);
+        cJSON_AddStringToObject(interface, "state", state);
+        free(state);
+
+        cJSON *ipv4 = cJSON_CreateObject();
+        cJSON *ipv4_addr = cJSON_CreateArray();
+        cJSON *ipv4_netmask = cJSON_CreateArray();
+        cJSON *ipv4_broadcast = cJSON_CreateArray();
+
+        cJSON *ipv6 = cJSON_CreateObject();
+        cJSON *ipv6_addr = cJSON_CreateArray();
+        cJSON *ipv6_netmask = cJSON_CreateArray();
+        cJSON *ipv6_broadcast = cJSON_CreateArray();
+
+        for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+
+            if (strcmp(ifaces_list[i], ifa->ifa_name)){
+                continue;
+            }
+
+            if (ifa->ifa_flags & IFF_LOOPBACK) {
+                continue;
+            }
+
+            /* Get MAC address */
+            char addr_path[PATH_LENGTH] = {'\0'};
+            snprintf(addr_path, PATH_LENGTH, "%s%s/address", WM_SYS_IFDATA_DIR, ifaces_list[i]);
+
+            FILE *fs_if_addr = fopen(addr_path, "r");
+            if (fs_if_addr != NULL) {
+                char mac[MAC_LENGTH] = {'\0'};
+
+                if (fgets(mac, sizeof(mac), fs_if_addr)) {
+                    char * newline = strchr(mac, '\n');
+                    if (newline) {
+                        *newline = '\0';
+                    }
+
+                    cJSON_AddStringToObject(interface, "MAC", mac);
+                } else {
+                    mtdebug1(WM_SYS_LOGTAG, "Invalid MAC address length for interface \"%s\" at \"%s\": file is empty.", ifaces_list[i], addr_path);
+                }
+
+                fclose(fs_if_addr);
+            } else {
+                mtwarn(WM_SYS_LOGTAG, "Unable to read MAC address for interface \"%s\" from \"%s\": %s (%d)", ifaces_list[i], addr_path, strerror(errno), errno);
+            }
+
+            if (ifa->ifa_addr) {
+                family = ifa->ifa_addr->sa_family;
+
+                if (family == AF_INET) {
+
+                    /* Get IPv4 address */
+                    char host[NI_MAXHOST] = "";
+                    int result = getnameinfo(ifa->ifa_addr,
+                            sizeof(struct sockaddr_in),
+                            host, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+                    if (result == 0) {
+                        cJSON_AddItemToArray(ipv4_addr, cJSON_CreateString(host));
+                    } else {
+                        mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                    }
+
+                    /* Get Netmask for IPv4 address */
+                    if (ifa->ifa_netmask != NULL) {
+                        char netmask[NI_MAXHOST] = "";
+                        result = getnameinfo(ifa->ifa_netmask,
+                            sizeof(struct sockaddr_in),
+                            netmask, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+
+                        if (result == 0) {
+                            cJSON_AddItemToArray(ipv4_netmask, cJSON_CreateString(netmask));
+                        } else {
+                            mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                        }
+
+                        /* Get broadcast address (or destination address in a Point to Point connection) */
+                        if (ifa->ifa_ifu.ifu_broadaddr != NULL){
+                            char broadaddr[NI_MAXHOST];
+                            result = getnameinfo(ifa->ifa_ifu.ifu_broadaddr,
+                                sizeof(struct sockaddr_in),
+                                broadaddr, NI_MAXHOST,
+                                NULL, 0, NI_NUMERICHOST);
+
+                            if (result == 0) {
+                                cJSON_AddItemToArray(ipv4_broadcast, cJSON_CreateString(broadaddr));
+                            } else {
+                                mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                            }
+                        } else if ((host[0] != '\0') && (netmask[0] != '\0')) {
+                            char * broadaddr;
+                            broadaddr = get_broadcast_addr(host, netmask);
+                            if (strncmp(broadaddr, "unknown", 7)) {
+                                cJSON_AddItemToArray(ipv4_broadcast, cJSON_CreateString(broadaddr));
+                            } else {
+                                mterror(WM_SYS_LOGTAG, "Failed getting broadcast addr for '%s'", host);
+                            }
+                            free(broadaddr);
+                        }
+                    }
+
+                } else if (family == AF_INET6) {
+
+                    /* Get IPv6 address */
+                    char host[NI_MAXHOST];
+                    int result = getnameinfo(ifa->ifa_addr,
+                            sizeof(struct sockaddr_in6),
+                            host, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+                    if (result == 0) {
+                        char ** parts = NULL;
+                        char *ip_addrr;
+                        parts = OS_StrBreak('%', host, 2);
+                        ip_addrr = w_strtrim(parts[0]);
+                        cJSON_AddItemToArray(ipv6_addr, cJSON_CreateString(ip_addrr));
+                        for (k=0; parts[k]; k++){
+                            free(parts[k]);
+                        }
+                        free(parts);
+                    } else {
+                        mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                    }
+
+                    /* Get Netmask for IPv6 address */
+                    if (ifa->ifa_netmask != NULL) {
+                        char netmask6[NI_MAXHOST];
+                        result = getnameinfo(ifa->ifa_netmask,
+                            sizeof(struct sockaddr_in6),
+                            netmask6, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+
+                        if (result == 0) {
+                            cJSON_AddItemToArray(ipv6_netmask, cJSON_CreateString(netmask6));
+                        } else {
+                            mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                        }
+                    }
+
+                    /* Get broadcast address (or destination address in a Point to Point connection) for IPv6*/
+                    if (ifa->ifa_ifu.ifu_broadaddr != NULL){
+                        char broadaddr6[NI_MAXHOST];
+                        result = getnameinfo(ifa->ifa_ifu.ifu_broadaddr,
+                            sizeof(struct sockaddr_in6),
+                            broadaddr6, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+
+                        if (result == 0) {
+                            cJSON_AddItemToArray(ipv6_broadcast, cJSON_CreateString(broadaddr6));
+                        } else {
+                            mterror(WM_SYS_LOGTAG, "getnameinfo() failed: %s\n", gai_strerror(result));
+                        }
+                    }
+
+                } else if (family == AF_PACKET && ifa->ifa_data != NULL){
+                    /* Get stats */
+                    struct link_stats *stats = ifa->ifa_data;
+                    cJSON_AddNumberToObject(interface, "tx_packets", stats->tx_packets);
+                    cJSON_AddNumberToObject(interface, "rx_packets", stats->rx_packets);
+                    cJSON_AddNumberToObject(interface, "tx_bytes", stats->tx_bytes);
+                    cJSON_AddNumberToObject(interface, "rx_bytes", stats->rx_bytes);
+                    cJSON_AddNumberToObject(interface, "tx_errors", stats->tx_errors);
+                    cJSON_AddNumberToObject(interface, "rx_errors", stats->rx_errors);
+                    cJSON_AddNumberToObject(interface, "tx_dropped", stats->tx_dropped);
+                    cJSON_AddNumberToObject(interface, "rx_dropped", stats->rx_dropped);
+
+                    /* MTU */
+                    char *mtu;
+                    int mtu_value;
+                    mtu = get_mtu(ifaces_list[i]);
+                    mtu_value = atoi(mtu);
+                    cJSON_AddNumberToObject(interface, "MTU", mtu_value);
+                    free(mtu);
+                }
+            }
+        }
+
+        /* Add address information to the structure */
+
+        if (cJSON_GetArraySize(ipv4_addr) > 0) {
+            cJSON_AddItemToObject(ipv4, "address", ipv4_addr);
+            if (cJSON_GetArraySize(ipv4_netmask) > 0) {
+                cJSON_AddItemToObject(ipv4, "netmask", ipv4_netmask);
+            } else {
+                cJSON_Delete(ipv4_netmask);
+            }
+            if (cJSON_GetArraySize(ipv4_broadcast) > 0) {
+                cJSON_AddItemToObject(ipv4, "broadcast", ipv4_broadcast);
+            } else {
+                cJSON_Delete(ipv4_broadcast);
+            }
 
         getNetworkIface(object, ifaces_list[i], ifaddr);
 
