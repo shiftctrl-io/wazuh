@@ -14,6 +14,36 @@
 #include "config/syscheck-config.h"
 #include "external/cJSON/cJSON.h"
 
+#ifdef WIN32
+/* Windows reparse data buffer type for symbolic links*/
+typedef struct _REPARSE_DATA_BUFFER {
+  ULONG  ReparseTag;
+  USHORT  ReparseDataLength;
+  USHORT  Reserved;
+  union {
+    struct {
+      USHORT  SubstituteNameOffset;
+      USHORT  SubstituteNameLength;
+      USHORT  PrintNameOffset;
+      USHORT  PrintNameLength;
+      ULONG   Flags; // it seems that the docu is missing this entry (at least 2008-03-07)
+      WCHAR  PathBuffer[1];
+      } SymbolicLinkReparseBuffer;
+    struct {
+      USHORT  SubstituteNameOffset;
+      USHORT  SubstituteNameLength;
+      USHORT  PrintNameOffset;
+      USHORT  PrintNameLength;
+      WCHAR  PathBuffer[1];
+      } MountPointReparseBuffer;
+    struct {
+      UCHAR  DataBuffer[1];
+    } GenericReparseBuffer;
+  };
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+#endif
+
+
 #define MAX_LINE PATH_MAX+256
 
 /* Notify list size */
@@ -51,7 +81,7 @@ int create_db(void);
 int run_dbcheck(void);
 
 /* Scan directory */
-int read_dir(const char *dir_name, int dir_position, whodata_evt *evt, int max_depth, __attribute__((unused))unsigned int is_link);
+int read_dir(char *dir_name, int dir_position, whodata_evt *evt, int max_depth, __attribute__((unused))unsigned int is_link);
 
 /* Check the registry for changes */
 void os_winreg_check(void);
@@ -83,7 +113,7 @@ int send_syscheck_msg(const char *msg) __attribute__((nonnull));
 int send_rootcheck_msg(const char *msg) __attribute__((nonnull));
 
 
-int realtime_checksumfile(const char *file_name, whodata_evt *evt) __attribute__((nonnull(1)));
+int realtime_checksumfile(char *file_name, whodata_evt *evt) __attribute__((nonnull(1)));
 
 /* Find container directory */
 int find_dir_pos(const char *filename, int full_compare, int check_find, int deep_search) __attribute__((nonnull(1)));
@@ -131,7 +161,16 @@ int fim_check_restrict(const char *file_name, OSMatch *restriction);
 #ifndef WIN32
 // Com request thread dispatcher
 void * syscom_main(void * arg);
+#else
 // Checking links to follow
+int islink_win(const char *file_name);
+#ifdef EVENTCHANNEL_SUPPORT
+char *real_path_win(const char *file_name, char *real_path);
+int absolute_path(char *file_name, const char *relative_path);
+int is_relative_path(const char *file_name);
+#endif
+#endif
+#if defined (EVENTCHANNEL_SUPPORT) || !defined (WIN32)
 int read_links(const char *dir_name, int dir_position, int max_depth, unsigned int is_link);
 #endif
 size_t syscom_dispatch(char *command, char ** output);

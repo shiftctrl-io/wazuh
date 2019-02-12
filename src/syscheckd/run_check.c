@@ -322,12 +322,29 @@ int c_read_file(const char *file_name, const char *oldsum, char *newsum, whodata
     unsigned int attributes = 0;
     char *sid = NULL;
     char *str_perm = NULL;
-    char *user;
+    char *user = NULL;
 #else
     char *w_inode;
     char str_owner[50], str_group[50], str_perm[50];
 #endif
+#if defined (EVENTCHANNEL_SUPPORT) || !defined(WIN32)
+    struct stat statbuf_lnk;
+#endif
 
+#ifdef EVENTCHANNEL_SUPPORT
+int pos;
+#ifdef WIN_WHODATA
+    if (evt) {
+        pos = evt->dir_position;
+    } else {
+#endif
+    pos = find_dir_pos(file_name, 1, 0, 0);
+#ifdef WIN_WHODATA
+    }
+#endif
+    int opts;
+    opts = syscheck.opts[pos];
+#endif
     /* Clean sums */
     strncpy(mf_sum,  "", 1);
     strncpy(sf_sum,  "", 1);
@@ -337,8 +354,6 @@ int c_read_file(const char *file_name, const char *oldsum, char *newsum, whodata
 #ifdef WIN32
     if (stat(file_name, &statbuf) < 0)
 #else
-    struct stat statbuf_lnk;
-
     if (lstat(file_name, &statbuf) < 0)
 #endif
     {
@@ -442,8 +457,25 @@ int c_read_file(const char *file_name, const char *oldsum, char *newsum, whodata
 
     /* Attributes*/
 #ifdef WIN32
+#ifdef EVENTCHANNEL_SUPPORT
+    char *real_path;
+    os_calloc(PATH_MAX+2, sizeof(char), real_path);
+    if (islink_win(file_name)) {
+        if (!real_path_win(file_name, real_path)) {
+            mdebug2("real_path_win() failed on: '%s'", file_name);
+        }
+    }
+#endif
     if (oldsum[9] == '+') {
+#ifdef EVENTCHANNEL_SUPPORT
+        if (islink_win(file_name) && (opts & CHECK_FOLLOW)) {
+            attributes = w_get_file_attrs(real_path);
+        } else {
+            attributes = w_get_file_attrs(file_name);
+        }
+#else
         attributes = w_get_file_attrs(file_name);
+#endif
     }
 #endif
 
@@ -546,35 +578,73 @@ int c_read_file(const char *file_name, const char *oldsum, char *newsum, whodata
         sha256sum  == 0 ? "" : sf256_sum,
         0);
 #else
-    user = get_user(file_name, statbuf.st_uid, &sid);
+#ifdef EVENTCHANNEL_SUPPORT
+    if (islink_win(file_name) && (opts & CHECK_FOLLOW)) {
+        if (stat(real_path, &statbuf_lnk) == 0) {
+            user = get_user(real_path, statbuf_lnk.st_uid, &sid);
 
-    if (size == 0){
-        *str_size = '\0';
-    } else {
-        sprintf(str_size, "%ld", (long)statbuf.st_size);
-    }
+            if (size == 0){
+                *str_size = '\0';
+            } else {
+                sprintf(str_size, "%ld", (long)statbuf_lnk.st_size);
+            }
 
-    if (perm == 1) {
-        int error;
-        char perm_unescaped[OS_SIZE_6144 + 1];
-        if (error = w_get_file_permissions(file_name, perm_unescaped, OS_SIZE_6144), error) {
-            merror("It was not possible to extract the permissions of '%s'. Error: %d.", file_name, error);
-        } else {
-            str_perm = escape_perm_sum(perm_unescaped);
+            if (perm == 1) {
+                int error;
+                char perm_unescaped[OS_SIZE_6144 + 1];
+                if (error = w_get_file_permissions(real_path, perm_unescaped, OS_SIZE_6144), error) {
+                    merror("It was not possible to extract the permissions of '%s'. Error: %d.", file_name, error);
+                } else {
+                    str_perm = escape_perm_sum(perm_unescaped);
+                }
+            }
+
+            if (mtime == 0){
+                *str_mtime = '\0';
+            } else {
+                sprintf(str_mtime, "%ld", (long)statbuf_lnk.st_mtime);
+            }
+
+            if (inode == 0){
+                *str_inode = '\0';
+            } else {
+                sprintf(str_inode, "%ld", (long)statbuf_lnk.st_ino);
+            }
         }
-    }
-
-    if (mtime == 0){
-        *str_mtime = '\0';
     } else {
-        sprintf(str_mtime, "%ld", (long)statbuf.st_mtime);
-    }
+#endif
+        user = get_user(file_name, statbuf.st_uid, &sid);
 
-    if (inode == 0){
-        *str_inode = '\0';
-    } else {
-        sprintf(str_inode, "%ld", (long)statbuf.st_ino);
+        if (size == 0){
+            *str_size = '\0';
+        } else {
+            sprintf(str_size, "%ld", (long)statbuf.st_size);
+        }
+
+        if (perm == 1) {
+            int error;
+            char perm_unescaped[OS_SIZE_6144 + 1];
+            if (error = w_get_file_permissions(file_name, perm_unescaped, OS_SIZE_6144), error) {
+                merror("It was not possible to extract the permissions of '%s'. Error: %d.", file_name, error);
+            } else {
+                str_perm = escape_perm_sum(perm_unescaped);
+            }
+        }
+
+        if (mtime == 0){
+            *str_mtime = '\0';
+        } else {
+            sprintf(str_mtime, "%ld", (long)statbuf.st_mtime);
+        }
+
+        if (inode == 0){
+            *str_inode = '\0';
+        } else {
+            sprintf(str_inode, "%ld", (long)statbuf.st_ino);
+        }
+#ifdef EVENTCHANNEL_SUPPORT
     }
+#endif
 
     snprintf(newsum, OS_MAXSTR, "%s:%s:%s::%s:%s:%s:%s:%s:%s:%s:%u",
         str_size,
@@ -594,6 +664,9 @@ int c_read_file(const char *file_name, const char *oldsum, char *newsum, whodata
             LocalFree(sid);
         }
         free(str_perm);
+#ifdef EVENTCHANNEL_SUPPORT
+        os_free(real_path);
+#endif
 #endif
 
     return (0);
