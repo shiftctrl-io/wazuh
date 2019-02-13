@@ -17,6 +17,8 @@ regex_t * regexCompiled;
 
 void W_ParseJSON(cJSON* root, const Eventinfo* lf)
 {
+    int i;
+
     // Parse hostname & Parse AGENTIP
     if(lf->full_log && lf->hostname) {
         W_JSON_ParseHostname(root, lf);
@@ -37,7 +39,12 @@ void W_ParseJSON(cJSON* root, const Eventinfo* lf)
     }
     // Parse labels
     if (lf->labels && lf->labels[0].key) {
-        W_JSON_ParseLabels(root, lf);
+        for (i = 0; lf->labels[i].key != NULL; i++) {
+            if (!lf->labels[i].flags.system) {
+                W_JSON_ParseLabels(root, lf);
+                break;
+            }
+        }
     }
 }
 
@@ -350,7 +357,7 @@ void W_JSON_ParseAgentIP(cJSON* root, const Eventinfo* lf)
 
     ip = labels_get(lf->labels, "_agent_ip");
 
-    if (!ip || strcmp(ip, "any") == 0) {
+    if (!ip) {
 
         if (lf->location[0] == '(') {
             string = strdup(lf->location);

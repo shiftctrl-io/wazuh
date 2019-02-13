@@ -770,9 +770,8 @@ char * get_agent_id_from_name(const char *agent_name) {
     return NULL;
 }
 
+/* Connect to the control socket if available */
 #ifdef __linux__
-/* Check control module availability */
-#ifndef WIN32
 int control_check_connection() {
     int sock = OS_ConnectUnixDomain(CONTROL_SOCK, SOCK_STREAM, OS_SIZE_128);
 
@@ -782,5 +781,4 @@ int control_check_connection() {
         return sock;
     }
 }
-#endif
 #endif
