@@ -203,10 +203,13 @@ def get_ca_checks(policy_id, agent_id=None, q="", offset=0, limit=common.databas
                       if k in set([col.replace('`', '') for col in select_fields])
                       }
         if select is None or 'compliance' in select['fields']:
-            check_dict['compliance'] = [{k: v for k, v in elem.items()
-                                         if k in fields_translation_ca_check_compliance.values()}
-                                        for elem in group_list
-                                        ]
+            check_dict['compliance'] = list(filter(lambda x: x != {},
+                                                   ({k: v for k, v in elem.items()
+                                                     if k in fields_translation_ca_check_compliance.values()}
+                                                    for elem in group_list
+                                                    )
+                                                   )
+                                            )
         result.append(check_dict)
 
     return {'totalItems': result_dict['totalItems'], 'items': result}
