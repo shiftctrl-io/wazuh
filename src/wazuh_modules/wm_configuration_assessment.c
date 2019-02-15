@@ -286,7 +286,7 @@ static int wm_configuration_assessment_start(wm_configuration_assessment_t * dat
         wm_delay(1000); // Avoid infinite loop when execution fails
         time_sleep = time(NULL) - time_start;
 
-        minfo("Configuration assessment scan finished. Duration: %d seconds.", (int)time_sleep);
+        minfo("Configuration Assessment scan finished. Duration: %d seconds.", (int)time_sleep);
 
         if (data->scan_day) {
             int interval = 0, i = 0;
@@ -452,11 +452,14 @@ static void wm_configuration_assessment_read_files(wm_configuration_assessment_t
                 requirements_satisfied = 1;
             }
 
-            if(requirements && wm_configuration_assessment_do_scan(plist,requirements_array,vars,data,id,policy,1,cis_db_index) == 0){
-                requirements_satisfied = 1;
-            } else {
-                requirements_satisfied = 0;
-                mwarn("Requirements not satisfied for policy '%s'. Skipping it.", data->profile[i]->profile);
+            if(requirements) {
+                if(wm_configuration_assessment_do_scan(plist,requirements_array,vars,data,id,policy,1,cis_db_index) == 0){
+                    requirements_satisfied = 1;
+                }
+            }
+
+            if(!requirements_satisfied) {
+                mwarn("Requirements not satisfied for policy '%s'.",data->profile[i]->profile);
             }
 
             if(requirements_satisfied) {
@@ -2096,7 +2099,8 @@ static void *wm_configuration_assessment_dump_db_thread(wm_configuration_assessm
             }
 
             unsigned int time = random;
-            mdebug1("Dumping DB for policy index: '%u' in %d seconds",*policy_index,random);
+            mdebug1("Dumping DB for policy index: '%u' in %d seconds.",*policy_index,random);
+            minfo("Integration checksum failed for policy: '%s'. Resending scan results in %d seconds.", data->profile[*policy_index]->profile);
             
             wm_delay(1000 * time);
 
