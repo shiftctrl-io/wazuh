@@ -85,8 +85,6 @@ components:
       properties:
         msg:
           type: string
-        older_than:
-          type: string
         affected_agents:
           type: array
           items:
@@ -95,6 +93,8 @@ components:
           type: array
           items:
             type: string
+        older_than:
+          type: string
         total_affected_agents:
           type: integer
           format: int32
@@ -115,6 +115,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  
   parameters:
     olderThanParam:
       in: query
@@ -136,6 +137,20 @@ components:
           - pending
           - neverconnected
           - disconnected
+    agent_id:
+      in: path
+      name: agent_id
+      description: Agent ID
+      required: true
+      schema:
+        type: integer
+    group_id:
+      in: path
+      name: group_id
+      description: Group ID.
+      required: true
+      schema:
+        type: string
     pretty:
       in: query
       name: pretty
@@ -148,40 +163,173 @@ components:
       description: Disable timeout response
       schema:
         type: boolean
+    offset:
+      in: query
+      name: offset
+      description: First element to return in the collection
+      schema:
+        type: integer
+        format: int32
+    limit:  
+      in: query
+      name: limit
+      description: Maximum number of elements to return
+      schema:
+        type: integer
+        format: int32
+    select:  
+      in: query
+      name: select
+      description: Select which fields to return (separated by comma)
+      schema:
+        type: array
+        items:
+          type: string
+    # It'd be more appropriate to be an array of strings, and separate the ascending or descending order in another param
+    sort:
+      in: query
+      name: sort
+      description: |
+            Sorts the collection by a field or fields (separated by comma). Use +/- at the beginning to list in ascending or descending order.
+      schema:
+        type: string
+    search:
+      in: query
+      name: search
+      description: Looks for elements with the specified string
+      schema:
+        type: string
+    query:
+      in: query
+      name: q
+      description: Query to filter results by. For example q=&quot;status=Active&quot;
+      schema:
+        type: string
+    purge:
+      in: query
+      name: purge
+      description: Delete an agent from the key store
+      schema:
+        type: boolean
   
 tags:
-- name: agents
-  description: 'Agents management related operations'
-- name: login
-  description: 'User authentication'
+  - name: active-response
+    description: 'Agents Active Response'
+  - name: agents
+    description: 'Agents management related operations'
+  - name: cache
+    description: ''
+  - name: ciscat
+    description: ''
+  - name: cluster
+    description: ''
+  - name: configuration-assessment
+    description: ''
+  - name: decoders
+    description: ''
+  - name: experimental
+    description: ''
+  - name: lists
+    description: ''
+  - name: login
+    description: 'User authentication'
+  - name: manager
+    description: ''
+  - name: rootcheck
+    description: ''
+  - name: rules
+    description: ''
+  - name: syscheck
+    description: ''
+  - name: syscollector
+    description: ''
 
 security:
     - authToken: []
 
 paths:
-  /token:
-    get:
+  /active-response/{agent_id}:
+    put:
       tags:
-      - login
-      summary: 'User/password authentication to get an access token'
-      description: 'This method should be called to get an API token. This token will expire at some time.'
-      operationId: loginUser
-      security:
-        - basicAuth: []
+        - active-response
+      summary: 'Run an AR command in the agent'
+      description: 'Runs an Active Response command on a specified agent'
+      operationId: activeResponse
+      parameters:
+        - $ref: '#/components/parameters/agent_id'
+      
+      requestBody:
+        content:
+          application/json:
+              schema:
+                properties:
+                  command:
+                    description: Command.
+                    type: string
+                    
+                  custom:
+                    description: Custom.
+                    type: boolean
+  
+                  arguments:
+                    description: Command arguments.
+                    type: array
+                    items:
+                      type: string
       responses:
         '200':
-          description: 'Login successful'
+          description: 'Command send to agent'
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-        '401':
-          description: 'Access unauthorized'
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                example:
+                  data: "Command sent."
+                  error: 0
 
   /agents:
+    delete:
+      tags:
+      - agents
+      summary: Delete agents
+      description: |
+        Removes agents, using a list of them or a criterion based on the status or time of the last connection. The Wazuh API must be restarted after removing an agent.
+      operationId: deleteAgents
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - in: query
+          name: ids
+          description: Array of agent ID’s
+          schema:
+            type: array
+            items:
+              type: string
+        - $ref: '#/components/parameters/purge'
+        - $ref: '#/components/parameters/statusParam'
+        - $ref: '#/components/parameters/olderThanParam'
+      responses:
+        '200':
+          description: Delete agents
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentDeleted'
+              example:
+                error: 0
+                data:
+                  msg: All selected agents were removed
+                  affected_agents:
+                  - '003'
+                  - '005'
+                  older_than: 10s
+                  total_affected_agents: 2
     get:
       tags:
       - agents
@@ -191,43 +339,13 @@ paths:
       parameters:
         - $ref: '#/components/parameters/pretty'
         - $ref: '#/components/parameters/wait_for_complete'
-        - in: query
-          name: offset
-          description: First element to return in the collection
-          schema:
-            type: integer
-            format: int32
-        - in: query
-          name: limit
-          description: Maximum number of elements to return
-          schema:
-           type: integer
-           format: int32
-        - in: query
-          name: select
-          description: Select which fields to return (separated by comma)
-          schema:
-            type: array
-            items:
-              type: string
-        # It'd be more appropriate to be an array of strings, and separate the ascending or descending order in another param
-        - in: query
-          name: sort
-          description: |
-            Sorts the collection by a field or fields (separated by comma). Use +/- at the beginning to list in ascending or descending order.
-          schema:
-            type: string
-        - in: query
-          name: search
-          description: Looks for elements with the specified string
-          schema:
-            type: string
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/query'
         - $ref: '#/components/parameters/statusParam'
-        - in: query
-          name: q
-          description: Query to filter results by. For example q=&quot;status=Active&quot;
-          schema:
-            type: string
         - $ref: '#/components/parameters/olderThanParam'
         - in: query
           name: os.platform
@@ -274,7 +392,6 @@ paths:
           description: Filters by agent IP
           schema:
             type: string
-
       responses:
         '200':
           description: 'List of agents or error description'
@@ -361,35 +478,22 @@ paths:
                     ip: 10.0.0.62
                     id: '002'
                     node_name: unknown
-
+  
+  /agents/{agent_id}:
     delete:
       tags:
-      - agents
-      summary: Delete agents
-      description: |
-        Removes agents, using a list of them or a criterion based on the status or time of the last connection. The Wazuh API must be restarted after removing an agent.
-      operationId: deleteAgents
+        - agents
+      summary: 'Delete an agent'
+      description: 'Removes an agent.'
+      operationId: deleteAgent
       parameters:
         - $ref: '#/components/parameters/pretty'
         - $ref: '#/components/parameters/wait_for_complete'
-        - in: query
-          name: ids
-          description: Array of agent ID’s
-          schema:
-            type: array
-            items:
-              type: string
-        - in: query
-          name: purge
-          description: Delete an agent from the key store
-          schema:
-            type: boolean
-        - $ref: '#/components/parameters/statusParam'
-        - $ref: '#/components/parameters/olderThanParam'
-
+        - $ref: '#/components/parameters/agent_id'
+        - $ref: '#/components/parameters/purge'
       responses:
         '200':
-          description: Delete agents
+          description: 'Delete agent'
           content:
             application/json:
               schema:
@@ -403,12 +507,56 @@ paths:
                 error: 0
                 data:
                   msg: All selected agents were removed
-                  older_than: 10s
                   affected_agents:
-                  - '003'
-                  - '005'
-                  total_affected_agents: 2
-
+                  - '008'
+  
+  /agents/{agent_id}/group:
+    delete:
+      tags:
+        - agents
+      summary: 'Remove all agent groups.'
+      description: 'Removes the group of the agent. The agent will automatically revert to the "default" group.'
+      operationId: deleteAgentGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+      responses:
+        '200':
+          description: 'Remove the group of the agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                example:
+                  error: 0
+                  data: "Group unset for agent '004'."
+                  
+  /agents/{agent_id}/group/{group_id}:
+    delete:
+      tags:
+        - agents
+      summary: 'Remove a single group of an agent'
+      description: 'Remove the group of the agent but will leave the rest of its group if it belongs to a multigroup.'
+      operationId: deleteAgentSingleGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        '200':
+          description: 'Remove the group of the agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                example:
+                  error: 0
+                  data: "Group 'dmz' unset for agent '004'."
+  
   /agents/restart:
     put:
       tags:
@@ -426,8 +574,30 @@ paths:
                 allOf:
                 - $ref: '#/components/schemas/ApiResponse'
                 example:
-                  data: "Restarting all agents"
                   error: 0
+                  data: "Restarting all agents"
+                  
+  /token:
+    get:
+      tags:
+      - login
+      summary: 'User/password authentication to get an access token'
+      description: 'This method should be called to get an API token. This token will expire at some time.'
+      operationId: loginUser
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: 'Login successful'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: 'Access unauthorized'
 
 externalDocs:
   description: Find more about Wazuh API usage
