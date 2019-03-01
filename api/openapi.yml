@@ -79,12 +79,50 @@ components:
         id:
           type: string
   
-  
     AgentDeleted:
       type: object
       properties:
         msg:
           type: string
+        affected_agents:
+          type: array
+          items:
+            type: string
+        failed_ids:
+          type: array
+          items:
+            type: string
+        older_than:
+          type: string
+        total_affected_agents:
+          type: integer
+          format: int32
+    
+    AgentGroup:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            properties:
+              count:
+                type: integer
+              name:
+                type: string
+              mergedSum:
+                type: string
+              configSum:
+                type: string
+    
+    AgentGroupDeleted:
+      type: object
+      properties:
+        msg:
+          type: string
+        affected_groups:
+          type: array
+          items:
+            type: string
         affected_agents:
           type: array
           items:
@@ -106,6 +144,28 @@ components:
       - pending
       - neverconnected
       - disconnected
+    
+    AgentConfiguration:
+      type: object
+      properties:
+        configuration:
+          type: array
+          items:
+            properties:
+              file:
+                type: string
+              logformat:
+                type: string
+              command:
+                type: string
+              alias:
+                type: string
+              target:
+                type: array
+                items:
+                  type: string
+              frequency:
+                type: integer
   securitySchemes:
     basicAuth:
       type: http
@@ -211,7 +271,84 @@ components:
       description: Delete an agent from the key store
       schema:
         type: boolean
-  
+    hash:
+      in: query
+      name: hash
+      description: Select algorithm to generate the sum.
+      schema:
+        type: string
+    list_agents:
+      in: query
+      name: ids
+      description: Array of agent's IDs
+      schema:
+        type: array
+        items:
+          type: integer
+    list_groups:
+      in: query
+      name: ids
+      description: Array of group's IDs
+      schema:
+        type: array
+        items:
+          type: string
+    configuration:
+      in: path
+      name: configuration
+      description: Selected agent's configuration to read
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - client
+          - buffer
+          - labels
+          - internal
+          - agentless
+          - global
+          - active_response
+          - alerts
+          - command
+          - rules
+          - decoders
+          - auth
+          - active-response
+          - cluster
+          - csyslog
+          - integration
+          - localfile
+          - socket
+          - remote
+          - syscheck
+          - rootcheck
+          - wmodules
+    component:
+      in: path
+      name: component
+      description: Selected agent's component.
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - agent
+          - agentless
+          - analysis
+          - auth
+          - com
+          - csyslog
+          - integrator
+          - logcollector
+          - mail
+          - monitor
+          - request
+          - syscheck
+          - wmodules
+          
 tags:
   - name: active-response
     description: 'Agents Active Response'
@@ -299,13 +436,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/pretty'
         - $ref: '#/components/parameters/wait_for_complete'
-        - in: query
-          name: ids
-          description: Array of agent ID’s
-          schema:
-            type: array
-            items:
-              type: string
+        - $ref: '#/components/parameters/list_agents'
         - $ref: '#/components/parameters/purge'
         - $ref: '#/components/parameters/statusParam'
         - $ref: '#/components/parameters/olderThanParam'
@@ -344,8 +475,8 @@ paths:
         - $ref: '#/components/parameters/select'
         - $ref: '#/components/parameters/sort'
         - $ref: '#/components/parameters/search'
-        - $ref: '#/components/parameters/query'
         - $ref: '#/components/parameters/statusParam'
+        - $ref: '#/components/parameters/query'
         - $ref: '#/components/parameters/olderThanParam'
         - in: query
           name: os.platform
@@ -509,6 +640,122 @@ paths:
                   msg: All selected agents were removed
                   affected_agents:
                   - '008'
+    get:
+      tags:
+        - agents
+      summary: 'Get an agent'
+      description: 'Returns various information from an agent.'
+      operationId: getAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - $ref: '#/components/parameters/select'
+      responses:
+        '200':
+          description: 'Get agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/Agent'
+              example:
+                error: 0
+                data:
+                    lastKeepAlive: '9999-12-31 23:59:59'
+                    ip: 127.0.0.1
+                    manager: manager
+                    os:
+                      arch: x86_64
+                      codename: Bionic Beaver
+                      major: '18'
+                      minor: '04'
+                      name: Ubuntu
+                      platform: ubuntu
+                      uname: Linux |manager |4.15.0-36-generic |#39-Ubuntu SMP Mon Sep 24 16:19:09
+                        UTC 2018 |x86_64
+                      version: 18.04.1 LTS
+                    status: Active
+                    version: Wazuh v3.8.0
+                    dateAdd: '2018-10-11 09:37:23'
+                    name: manager
+                    node_name: node01
+                    id: '000'
+  
+  /agents/{agent_id}/config/{component}/{configuration}:
+    #Revision salida??
+    get:
+      tags:
+        - agents
+      summary: 'Get active configuration'
+      description: 'Returns the active configuration in JSON format.'
+      operationId: getAgentConfig
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - $ref: '#/components/parameters/component'
+        - $ref: '#/components/parameters/configuration'
+      responses:
+        '200':
+          description: 'Get agent configuration'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/AgentConfiguration'
+              example:
+                error: 0
+                data:
+                    localfile:
+                      - logformat: command
+                        command: df -P
+                        alias: df -P
+                        target:
+                          - agent
+                        frequency: 360
+                      - logformat: full_command
+                        command: netstat -tulpn | sed 's/\\([[:alnum:]]\\+\\)\\ \\+[[:digit:]]\\+\\ \\+[[:digit:]]\\+\\ \\+\\(.*\\):\\([[:digit:]]*\\)\\ \\+\\([0-9\\.\\:\\*]\\+\\).\\+\\ \\([[:digit:]]*\\/[[:alnum:]\\-]*\\).*/\\1 \\2 == \\3 == \\4 \\5/' | sort -k 4 -g | sed 's/ == \\(.*\\) ==/:\\1/' | sed 1,2d
+                        alias: netstat listening ports
+                        target:
+                          - agent
+                        frequency: 360
+                      - logformat: full_command
+                        command: last -n 20
+                        alias: last -n 20
+                        target:
+                          - agent
+                        frequency: 360
+                      - file: /var/ossec/logs/active-responses.log
+                        logformat: syslog
+                        target:
+                          - agent
+                      - file: /var/log/auth.log
+                        logformat: syslog
+                        target:
+                          - agent
+                      - file: /var/log/syslog
+                        logformat: syslog
+                        target:
+                          - agent
+                      - file: /var/log/dpkg.log
+                        logformat: syslog
+                        target:
+                          - agent
+                      - file: /var/log/kern.log
+                        logformat: syslog
+                        target:
+                          - agent
   
   /agents/{agent_id}/group:
     delete:
@@ -533,6 +780,37 @@ paths:
                   error: 0
                   data: "Group unset for agent '004'."
                   
+  /agents/{agent_id}/group/is_sync:
+    get:
+      tags:
+        - agents
+      summary: 'Get sync status of agent'
+      description: 'Returns the sync status in JSON format.'
+      operationId: getSyncAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+      responses:
+        '200':
+          description: 'Get agent sync'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        properties:
+                          syncef:
+                            type: boolean
+                        
+              example:
+                error: 0
+                data:
+                    synced: false
+                  
   /agents/{agent_id}/group/{group_id}:
     delete:
       tags:
@@ -556,7 +834,297 @@ paths:
                 example:
                   error: 0
                   data: "Group 'dmz' unset for agent '004'."
+                  
+  /agents/{agent_id}/key:
+    get:
+      tags:
+        - agents
+      summary: 'Get agent key'
+      description: 'Returns the key of an agent.'
+      operationId: getAgentKey
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+      responses:
+        '200':
+          description: 'Get agent key'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        
+              example:
+                error: 0
+                data: MDA0IG1haW5fZGF0YWJhc2UgMTAuMC4wLjE1IDIzNGM1Y2MzZjhhNzA2OWY2ZGRjN2I0NDc1MWZmNmE1Zjg3MjExMTJiZWJhNmFhMWUyMDIzNWI4MTBjYWNiM2I=
   
+  /agents/{agent_id}/upgade_result:
+    #No claro donde se envia el parámetro timeout
+    get:
+      tags:
+        - agents
+      summary: 'Get upgrade result from agent'
+      description: 'Returns the upgrade result from an agent.'
+      operationId: getAgentUpgrade
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - in: query
+          name: timeout
+          description: Seconds to wait for the agent to respond.
+          schema:
+            type: integer
+          
+      responses:
+        '200':
+          description: 'Get agent upgrade result'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        
+              example:
+                error: 0
+                data: Agent upgraded successfully
+  
+  /agents/group/{group_id}:
+    delete:
+      tags:
+        - agents
+      summary: 'Remove a single group of multiple agents'
+      description: 'Remove a list of agents of a group.'
+      operationId: deleteMultipleAgentGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/list_agents'
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        '200':
+          description: 'Remove the group of multiple agents'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentDeleted'
+              example:
+                error: 0
+                data:
+                  msg: All selected agents were removed to group dmz
+                  affected_agents:
+                  - '001'
+                  - '002'
+  
+  /agents/groups:
+    delete:
+      tags:
+        - agents
+      summary: 'Delete a list of groups'
+      operationId: deleteListGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/list_groups'
+      responses:
+        '200':
+          description: 'Remove multiple group of multiple agents'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentGroupDeleted'
+              example:
+                error: 0
+                data:
+                  msg: All selected groups were removed
+                  affected_groups:
+                  - 'webserver'
+                  - 'dataserver'
+                  affected_agents:
+                  - '002'
+                  - '005'
+                  - '003'
+    get:
+      tags:
+        - agents
+      summary: 'Get groups'
+      description: 'Returns the list of existing agent groups.'
+      operationId: getListGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/hash'
+      responses:
+        '200':
+          description: 'List all groups'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentGroup'
+              example:
+                error: 0
+                data:
+                  item:
+                  - count: 2
+                    name: default
+                    mergedSum: f8d49771911ed9d5c45b03a40babd065
+                    configSum: ab73af41699f13fdd81903b5f23d8d00
+                  - count: 3
+                    name: dmz
+                    mergedSum: 220d6c5fc253f251827ee7487341c0fc
+                    configSum: cfbae9ecc10eb15f1b4fc736de6758cc
+                  - count: 0
+                    name: pciserver
+                    mergedSum: 220d6c5fc253f251827ee7487341c0fc
+                    configSum: ab73af41699f13fdd81903b5f23d8d00
+
+  
+  /agents/groups/{group_id}:
+    #Revision salida???
+    delete:
+      tags:
+        - agents
+      summary: 'Remove group'
+      description: 'Removes the group. Agents that were assigned to the removed group will automatically revert to the "default" group.'
+      operationId: deleteGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        '200':
+          description: 'Remove a group and revert agents to default group'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentGroupDeleted'
+              example:
+                error: 0
+                data:
+                  msg: All selected groups were removed
+                  affected_groups:
+                  - 'dmz'
+                  affected_agents:
+    #Not Complete
+    get:
+      tags:
+        - agents
+      summary: 'Get agents in a group'
+      description: 'Returns the list of agents in a group.'
+      operationId: getAgentInGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/statusParam'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          description: 'List of agents or error description'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Agent'
+              example:
+                error: 0
+                data:
+                  totalItems: 3
+                  items:
+                  - os:
+                      arch: x86_64
+                      codename: Bionic Beaver
+                      major: '18'
+                      minor: '04'
+                      name: Ubuntu
+                      platform: ubuntu
+                      uname: Linux |agent-1 |4.15.0-43-generic |#46-Ubuntu SMP Thu Dec 6 14:45:28 UTC 2018 |x86_64
+                      version: 18.04.1 LTS
+                    group:
+                      - default
+                      - dmz
+                    lastKeepAlive: '2019-02-19 10:31:09'
+                    ip: 172.17.0.201
+                    manager: manager
+                    status: Active
+                    version: Wazuh v3.8.2
+                    dateAdd: '2019-02-19 10:25:42'
+                    name: agent-1
+                    configSum: ab73af41699f13fdd81903b5f23d8d00
+                    registerIP: 172.17.0.201
+                    node_name: node01
+                    id: '001'
+                    mergedSum: f8d49771911ed9d5c45b03a40babd065
+                  - group:
+                    - default
+                    - dmz
+                    lastKeepAlive: '10.0.0.62'
+                    status: Never connected
+                    dateAdd: '2019-02-19 10:30:59'
+                    name: server001
+                    registerIP: 10.0.0.62
+                    node_name: unknown
+                    id: '002'
+                  - group:
+                    - dmz
+                    lastKeepAlive: '10.0.0.15'
+                    status: Never connected
+                    dateAdd: '2019-02-19 10:31:00'
+                    name: main_database
+                    registerIP: 10.0.0.15
+                    node_name: unknown
+                    id: '004'
+
+
   /agents/restart:
     put:
       tags:
