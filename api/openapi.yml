@@ -79,7 +79,25 @@ components:
         id:
           type: string
   
-    AgentDeleted:
+    AgentByName:
+      type: object
+      properties:
+        ip:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        dateAdd:
+          type: string
+        name:
+          type: string
+        registerIP:
+          type: string
+        node_name:
+          type: string
+        id:
+          type: string
+  
+    AgentAffected:
       type: object
       properties:
         msg:
@@ -92,6 +110,12 @@ components:
           type: array
           items:
             type: string
+    
+    AllAgentAffected:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/AgentAffected'
+      properties:
         older_than:
           type: string
         total_affected_agents:
@@ -136,6 +160,24 @@ components:
         total_affected_agents:
           type: integer
           format: int32
+          
+    AgentIdKey:
+      type: object
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+          
+    AgentSimple:
+      type: object
+      properties:
+        version:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
     
     AgentStatus:
       type: string
@@ -166,6 +208,27 @@ components:
                   type: string
               frequency:
                 type: integer
+    
+    GroupConfiguration:
+      type: object
+      properties:
+        filter:
+          type: object
+          properties:
+            os:
+              type: string
+        config:
+          type: object
+          properties:
+            localfile:
+              type: array
+              items:
+                properties:
+                  location:
+                    type: string
+                  log_format:
+                    type: string
+              
   securitySchemes:
     basicAuth:
       type: http
@@ -208,6 +271,20 @@ components:
       in: path
       name: group_id
       description: Group ID.
+      required: true
+      schema:
+        type: string
+    file_name:
+      in: path
+      name: file_name
+      description: Filename.
+      required: true
+      schema:
+        type: string
+    agent_name:
+      in: path
+      name: agent_name
+      description: Agent name.
       required: true
       schema:
         type: string
@@ -271,6 +348,12 @@ components:
       description: Delete an agent from the key store
       schema:
         type: boolean
+    fields:
+      in: query
+      name: fields
+      description: List of fields affecting the operation.
+      schema:
+        type: string
     hash:
       in: query
       name: hash
@@ -348,6 +431,30 @@ components:
           - request
           - syscheck
           - wmodules
+    type:
+      in: query
+      name: type
+      description: Type of file.
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - conf
+          - rootkit_files
+          - rootkit_trojans
+          - rcl
+    format:
+      in: query
+      name: fromat
+      description: Optional. Output format (JSON, XML).
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - json
+          - xml
           
 tags:
   - name: active-response
@@ -451,7 +558,7 @@ paths:
                 - type: object
                   properties:
                     data:
-                      $ref: '#/components/schemas/AgentDeleted'
+                      $ref: '#/components/schemas/AllAgentAffected'
               example:
                 error: 0
                 data:
@@ -609,6 +716,50 @@ paths:
                     ip: 10.0.0.62
                     id: '002'
                     node_name: unknown
+    post:
+      tags:
+      - agents
+      summary: 'Add agent'
+      description: 'Add a new agent.'
+      operationId: postAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+
+      requestBody:
+        content:
+          application/json:
+              schema:
+                properties:
+                  name:
+                    description: Agent name.
+                    type: string
+                    
+                  ip:
+                    description: "If this is not included, the API will get the IP automatically. If you are behind a proxy, you must set the option config.BehindProxyServer to yes at config.js. Allowed values: IP, IP/NET, ANY"
+                    type: string
+  
+                  force:
+                    description: Remove the old agent with the same IP if disconnected since <force> seconds.
+                    type: integer
+      responses:
+        '200':
+          description: 'Add an agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentIdKey'
+              example:
+                error: 0
+                data:
+                  id: "007"
+                  key: MDA3IE5ld0hvc3QgMTAuMC4wLjkgZTk5MDE2ZTkzMjMyZDBjZDYyMGIyZTZmMTM2ZjMzMDQxMjY3M2E0NGRmOTNmODk1NzFjMGQyYzczY2VlYzRhZQ==
+                  
   
   /agents/{agent_id}:
     delete:
@@ -633,7 +784,7 @@ paths:
                 - type: object
                   properties:
                     data:
-                      $ref: '#/components/schemas/AgentDeleted'
+                      $ref: '#/components/schemas/AgentAffected'
               example:
                 error: 0
                 data:
@@ -834,6 +985,33 @@ paths:
                 example:
                   error: 0
                   data: "Group 'dmz' unset for agent '004'."
+    put:
+      tags:
+        - agents
+      summary: 'Add agent group'
+      description: 'Adds an agent to the specified group.'
+      operationId: putAgentSingleGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - $ref: '#/components/parameters/group_id'
+        - in: query
+          name: force_single_group
+          description: Wheter to append new group to current agent's group or replace it.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 'Add agent to group'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                example:
+                  error: 0
+                  data: "Group '004' already belongs to group 'dmz'."
                   
   /agents/{agent_id}/key:
     get:
@@ -921,11 +1099,51 @@ paths:
                 - type: object
                   properties:
                     data:
-                      $ref: '#/components/schemas/AgentDeleted'
+                      $ref: '#/components/schemas/AgentAffected'
               example:
                 error: 0
                 data:
                   msg: All selected agents were removed to group dmz
+                  affected_agents:
+                  - '001'
+                  - '002'
+    post:
+      tags:
+        - agents
+      summary: 'Add a list of agents to a group'
+      description: 'Adds a list of agents to the specified group.'
+      operationId: postMultipleAgentGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+      
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                agent_id_list:
+                  description: List of agents ID.
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: 'Add multiple agents to a group'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentAffected'
+              example:
+                error: 0
+                data:
+                  msg: All selected agents assigned to group dmz
                   affected_agents:
                   - '001'
                   - '002'
@@ -1006,7 +1224,6 @@ paths:
                     mergedSum: 220d6c5fc253f251827ee7487341c0fc
                     configSum: ab73af41699f13fdd81903b5f23d8d00
 
-  
   /agents/groups/{group_id}:
     #Revision salida???
     delete:
@@ -1038,7 +1255,6 @@ paths:
                   affected_groups:
                   - 'dmz'
                   affected_agents:
-    #Not Complete
     get:
       tags:
         - agents
@@ -1123,15 +1339,511 @@ paths:
                     registerIP: 10.0.0.15
                     node_name: unknown
                     id: '004'
-
-
+  
+  /agents/groups/{group_id}/configuration:
+    get:
+      tags:
+        - agents
+      summary: 'Get group configuration'
+      description: 'Returns the group configuration (agent.conf).'
+      operationId: getGroupConfig
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: 'Get group configuration'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/GroupConfiguration'
+              example:
+                error: 0
+                data:
+                  totalItems: 1
+                  items:
+                  - filters:
+                      os: Linux
+                  - config:
+                      localfile:
+                      - location: /var/log/linux.log
+                      - log_format: syslog
+    #Repasar llamada ¿faltan parametros?
+    post:
+      tags:
+        - agents
+      summary: 'Put configuration file (agent.conf) into a group'
+      description: 'Upload the group configuration (agent.conf).'
+      operationId: postGroupConfig
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              properties:
+                file_name:
+                  description: Updated file
+                  type: string
+      
+      responses:
+        '200':
+          description: 'Upload configuration'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: string
+              example:
+                error: 0
+                data: Agent configuration was updated successfully
+      
+  /agents/groups/{group_id}/files:
+    get:
+      tags:
+        - agents
+      summary: 'Get group files'
+      description: 'Returns the files belonging to the group.'
+      operationId: getGroupFiles
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/hash'
+      responses:
+        '200':
+          description: 'Get group files'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                properties:
+                                  filename:
+                                    type: string
+                                  hash:
+                                    type: string
+              example:
+                error: 0
+                data:
+                  totalItems: 24
+                  items:
+                    - filename: agent.conf
+                      hash: ab73af41699f13fdd81903b5f23d8d00
+                    - filename: ar.conf
+                      hash: 76d8be9b97d8eae4c239e530ee7e71c8
+                    - filename: cis_apache2224_rcl.txt
+                      hash: 3c2469443a08b01c454ca35558cb9fa6
+                    - filename: cis_debian_linux_rcl.txt
+                      hash: cc12fdba595817758f308024f61acb71
+                    - filename: cis_mysql5-6_community_rcl.txt
+                      hash: f5f770160baf596373e4f77f987cc422
+                    - filename: cis_mysql5-6_enterprise_rcl.txt
+                      hash: de9865c809f1555d537e5a49872eaf4c
+                    - filename: cis_rhel5_linux_rcl.txt
+                      hash: a3af38b3f81a48332c7bcd9cf8aa6eff
+                    - filename: cis_rhel6_linux_rcl.txt
+                      hash: bdcfa3ab90b553f8e5c84cfa9fd90289
+                    - filename: cis_rhel7_linux_rcl.txt
+                      hash: 039e579029e3edcf8241fb391f46b12f
+                    - filename: cis_rhel_linux_rcl.txt
+                      hash: 569cd8a2cc7527cc75f81f77098de461
+                    - filename: cis_sles11_linux_rcl.txt,
+                      hash: d86ee36d384930293cbcc83c8fb57c93
+                    - filename: cis_sles12_linux_rcl.txt
+                      hash: 6f58710fa8eef659dc782a3fa4699e33
+                    - filename: cis_win2012r2_domainL1_rcl.txt
+                      hash: 8819dfa3523933b113e27a85fc9e568d
+                    - filename: cis_win2012r2_domainL2_rcl.txt
+                      hash: e8a2c7ab57bc8102b237f061b8f82dce
+                    - filename: cis_win2012r2_memberL1_rcl.txt
+                      hash: 38c88156d03af9372efd620e6e57d473
+                    - filename: cis_win2012r2_memberL2_rcl.txt
+                      hash: c4b62b3e01b5f5634a9719eb8a104028
+                    - filename: merged.mg
+                      hash: f8d49771911ed9d5c45b03a40babd065
+                    - filename: rootkit_files.txt
+                      hash: e5ddcac443143cef6237d5f9b8d48585
+                    - filename:  rootkit_trojans.txt
+                      hash: 6bcf7016d3e6b4c7faa62cf265c24dcc
+                    - filename: system_audit_rcl.txt
+                      hash: be69b84dd5ee73200bb903a46270e18c
+                    - filename: system_audit_ssh.txt
+                      hash: 407c1f5e103f0cb58249eb7252a84797
+                    - filename: win_applications_rcl.txt
+                      hash: 0a4ad12c8145aca8a28d31de5c448b48
+                    - filename: win_audit_rcl.txt
+                      hash: 92d8011facc8b921ece301ea4ce6a616
+                    - filename: win_malware_rcl.txt
+                      hash: 6a8d3c63a0e77dea35aaed3ee2cca3a1
+      
+  /agents/groups/{group_id}/files/{file_name}:
+    get:
+      tags:
+        - agents
+      summary: 'Get a file in group'
+      description: 'Returns the specified file belonging to the group parsed to JSON.'
+      operationId: getGroupFile
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/file_name'
+        - $ref: '#/components/parameters/type'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: 'Get group file'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            controls:
+                              type: array
+                              items:
+                                properties:
+                                  condition:
+                                    type: string
+                                  name:
+                                    type: string
+                                  reference:
+                                    type: string
+                                  checks:
+                                    type: array
+                                    items:
+                                      type: string
+              example:
+                error: 0
+                data:
+                  controls:
+                    - ...: ...
+                    - condition: all required
+                      name: CIS - Testing against the CIS Debian Linux Benchmark v1
+                      reference: CIS_Debian_Benchmark_v1.0pdf
+                      checks: 
+                        - f:/etc/debian_version
+    post:
+      tags:
+        - agents
+      summary: 'Upload file into a group'
+      operationId: postGroupFile
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/file_name'
+      
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              properties:
+                file_name:
+                  description: Updated file
+                  type: string
+      
+      responses:
+        '200':
+          description: 'Post group file'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: string
+              example:
+                error: 0
+                data: Agent configuration was updated successfully
+             
+  /agents/groups/insert:
+    post:
+      tags:
+        - agents
+      summary: 'Get a file in group'
+      description: 'Returns the specified file belonging to the group parsed to JSON.'
+      operationId: insertAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+      requestBody:
+        content:
+          application/json:
+              schema:
+                properties:
+                  name:
+                    description: Agent name.
+                    type: string
+                    
+                  ip:
+                    description: "If this is not included, the API will get the IP automatically. If you are behind a proxy, you must set the option config.BehindProxyServer to yes at config.js. Allowed values: IP, IP/NET, ANY"
+                    type: string
+                    
+                  id:
+                    description: Agent ID.
+                    type: string
+                    
+                  key:
+                    description: "Agent key. Minimum length: 64 characters. Allowed values: ^[a-zA-Z0-9]+$"
+                    type: string
+  
+                  force:
+                    description: Remove the old agent with the same IP if disconnected since <force> seconds.
+                    type: integer
+      responses:
+        '200':
+          description: 'Get group file'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentIdKey'
+              example:
+                error: 0
+                data:
+                  id: 123
+                  key: MTIzIE5ld0hvc3RfMiAxMC4wLjEwLjEwIDFhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5emFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6YWJjZGVmZ2hpNjQ=
+  
+  /agents/name/{agent_name}:
+    get:
+      tags:
+        - agents
+      summary: 'Get an agent by its name'
+      description: 'Returns various information from an agent called :agent_name.'
+      operationId: getAgentByName
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_name'
+        - $ref: '#/components/parameters/select'
+      responses:
+        '200':
+          description: 'Get agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/AgentByName'
+              example:
+                error: 0
+                data:
+                  ip: 10.0.0.9
+                  status: Never connected
+                  dateAdd: "2019-02-19 10:31:12"
+                  name: NewHost
+                  registerIP: 10.0.0.9
+                  node_name: unknown
+                  id: "007"
+                  
+  /agents/no_group:
+    get:
+      tags:
+        - agents
+      summary: 'Get agents without group'
+      description: 'Returns a list with the available agents without group.'
+      operationId: getAgentNoGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          description: 'Get agents without group'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/AgentByName'
+              example:
+                error: 0
+                data:
+                  totalItems: 3
+                  items:
+                    - ip: 10.0.0.20
+                      status: Never connected
+                      dateAdd: "2019-02-19 10:31:00"
+                      name: server002
+                      registerIP: 10.0.0.20
+                      node_name: unknown
+                      id: "006"
+                    - ip: 10.0.0.9
+                      status: Never connected
+                      dateAdd: "2019-02-19 10:31:12"
+                      name: NewHost
+                      registerIP: 10.0.0.9
+                      node_name: unknown
+                      id: "007"
+                    - ip: 10.0.10.10
+                      status: Never connected
+                      dateAdd: "2019-02-19 10:31:13"
+                      name: NewHost_2
+                      registerIP: 10.0.10.10
+                      node_name: unknown
+                      id: "123"
+                      
+  /agents/outdated:
+    get:
+      tags:
+        - agents
+      summary: 'Get outdated agents'
+      description: 'Returns the list of outdated agents.'
+      operationId: getAgentOutdated
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          description: 'Get outdated agents'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/AgentSimple'
+              example:
+                error: 0
+                data:
+                  totalItems: 2
+                  items:
+                    - version: Wazuh v3.0.0
+                      id: "003"
+                      name: main_database
+                    - version: Wazuh v3.0.0
+                      id: "004"
+                      name: dmz002
+  
   /agents/restart:
+    post:
+      tags:
+      - agents
+      summary: 'Restart a list of agents'
+      operationId: restartLisAgents
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                ids:
+                  description: Array of agent ID's.
+                  type: array
+                  items:
+                    type: string
+                  
+      responses:
+        '200':
+          description: Agents restarted
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentAffected'
+                example:
+                  error: 0
+                  data:
+                    msg: All selected agents were restarted
+                    affected_agents:
+                    - '002'
+                    - '004'
     put:
       tags:
       - agents
       summary: 'Restarts all agents'
-      operationId: restart_all_agents
+      operationId: restartAllAgents
       parameters:
+        - $ref: '#/components/parameters/pretty'
         - $ref: '#/components/parameters/wait_for_complete'
       responses:
         '200':
@@ -1144,6 +1856,148 @@ paths:
                 example:
                   error: 0
                   data: "Restarting all agents"
+  
+  /agents/stats/distinct:
+    #Repasar schema
+    get:
+      tags:
+        - agents
+      summary: 'Get distinct fields in agents'
+      description: 'Returns all the different combinations that agents have for the selected fields. It also indicates the total number of agents that have each combination.'
+      operationId: getAgentFields
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          description: 'Get fields in agents'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                properties:
+                                  os:
+                                    properties:
+                                      platform:
+                                        type: string
+                                        nullable: true
+                                      version:
+                                        type: string
+                                        nullable: true
+                                      name:
+                                        type: string
+                                        nullable: true
+                                  count:
+                                    type: integer
+              example:
+                error: 0
+                data:
+                  totalItems: 7
+                  items:
+                    - os:
+                        platform: ubuntu
+                      count: 2
+                    - count: 5
+  
+  /agents/summary:
+    get:
+      tags:
+        - agents
+      summary: 'Get agents summary'
+      description: 'Returns a summary of the available agents.'
+      operationId: getAgentSummart
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+      responses:
+        '200':
+          description: 'Get summary of agents'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      properties:
+                        Total:
+                          type: integer
+                        Active:
+                          type: integer
+                        Disconnected:
+                          type: integer
+                        Never connected:
+                          type: integer
+                        Pending:
+                          type: integer
+              example:
+                error: 0
+                data:
+                  Total: 7
+                  Active: 2
+                  Disconnected: 0
+                  Never connected: 5
+                  Pending: 0
+              
+  /agents/summary/os:
+    get:
+      tags:
+        - agents
+      summary: 'Get OS summary'
+      description: 'Returns a summary of the OS.'
+      operationId: getAgentSummartOS
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/query'
+      responses:
+        '200':
+          description: 'Get summary of agents OS'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      allOf:
+                        - $ref: '#/components/schemas/ListMetadata'
+                        - type: object
+                          properties:
+                            items:
+                              type: array
+                              items:
+                                type: string
+              example:
+                error: 0
+                data:
+                  totalItems: 1
+                  items:
+                    - ubuntu
                   
   /token:
     get:
