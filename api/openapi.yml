@@ -376,6 +376,12 @@ components:
         type: array
         items:
           type: string
+    version:
+      in: query
+      name: version
+      description: Filters by agents version.
+      schema:
+        type: string
     configuration:
       in: path
       name: configuration
@@ -605,11 +611,7 @@ paths:
           description: Filters by manager hostname to which agents are connected.
           schema:
             type: string
-        - in: query
-          name: version
-          description: Filters by agents version.
-          schema:
-            type: string
+        - $ref: '#/components/parameters/version'
         - in: query
           name: group
           description: Filters by group of agents.
@@ -1008,7 +1010,11 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: 
+                        type: string
                 example:
                   error: 0
                   data: "Group '004' already belongs to group 'dmz'."
@@ -1040,8 +1046,150 @@ paths:
               example:
                 error: 0
                 data: MDA0IG1haW5fZGF0YWJhc2UgMTAuMC4wLjE1IDIzNGM1Y2MzZjhhNzA2OWY2ZGRjN2I0NDc1MWZmNmE1Zjg3MjExMTJiZWJhNmFhMWUyMDIzNWI4MTBjYWNiM2I=
+                
+  /agents/{agent_id}/restart:
+    put:
+      tags:
+        - agents
+      summary: 'Restart an agent'
+      description: 'Restarts the specified agent.'
+      operationId: putRestartAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+      responses:
+        '200':
+          description: 'Agent restarted'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentAffected'
+                example:
+                  error: 0
+                  data: 
+                    msg: All selected agents were restarted
+                    affected_agents:
+                      - "007"
   
-  /agents/{agent_id}/upgade_result:
+  /agents/{agent_id}/upgrade:
+    put:
+      tags:
+        - agents
+      summary: 'Upgrade agent using online repository'
+      description: 'Upgrade the agent using a WPK file from online repository.'
+      operationId: putUpgradeAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - in: query
+          name: wpk_repo
+          description: WPK repository.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/version'
+        - in: query
+          name: use_http
+          description: Use protocol http. If it's false use https. By default the value is set to false.
+          schema:
+            type: boolean
+        - in: query
+          name: force
+          description: Force upgrade.
+          schema:
+            type: integer
+            enum:
+              - "0"
+              - "1"
+      responses:
+        '200':
+          description: 'Agent upgraded'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: 
+                        type: string
+              example:
+                error: 0
+                data: "Upgrade procedure started"
+                
+  /agents/{agent_id}/upgrade_custom:
+    put:
+      tags:
+        - agents
+      summary: 'Upgrade agent using online repository'
+      description: 'Upgrade the agent using a WPK file from online repository.'
+      operationId: putUpgradeCustomAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_id'
+        - in: query
+          name: file_path
+          description: Path to the WPK file. The file must be on a folder on the Wazuh's installation directory (by default, <code>/var/ossec</code>).
+          schema:
+            type: string
+        - in: query
+          name: installer
+          description: Installation script.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'Agent upgraded'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: 
+                        type: string
+              example:
+                error: 0
+                data: "Installation started"
+  
+  /agents/{agent_name}:
+    put:
+      tags:
+        - agents
+      summary: 'Add agent (quick method)'
+      description: 'Adds a new agent with name :agent_name. This agent will use ANY as IP.'
+      operationId: putNewAgent
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/agent_name'
+      responses:
+        '200':
+          description: 'Agent added'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AgentIdKey'
+              example:
+                error: 0
+                data:
+                  id: "008"
+                  key: MDA4IG15TmV3QWdlbnQgYW55IDIyNGVmNmI4NjYyMDk5OTc5NzdiZWJhNDRmZTAyNDI0NjU2ZDM1NjhjNWJiZWI4Njk0M2JkMzdjZjA5YjZlM2M=
+  
+  /agents/{agent_id}/upgrade_result:
     #No claro donde se envia el parámetro timeout
     get:
       tags:
@@ -1339,6 +1487,31 @@ paths:
                     registerIP: 10.0.0.15
                     node_name: unknown
                     id: '004'
+    put:
+      tags:
+        - agents
+      summary: 'Create a group'
+      description: 'Creates a new group.'
+      operationId: putGroup
+      parameters:
+        - $ref: '#/components/parameters/pretty'
+        - $ref: '#/components/parameters/wait_for_complete'
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        '200':
+          description: 'Add new agent'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: 
+                        type: string
+              example:
+                error: 0
+                data: "Group 'pciserver' created"
   
   /agents/groups/{group_id}/configuration:
     get:
@@ -1998,7 +2171,7 @@ paths:
                   totalItems: 1
                   items:
                     - ubuntu
-                  
+
   /token:
     get:
       tags:
