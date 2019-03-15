@@ -8,6 +8,7 @@ import os
 import re
 import yaml
 
+from api.api_exception import APIException
 from wazuh import common
 
 from api import validator
@@ -33,7 +34,7 @@ def get_old_config() -> Dict:
                         # add element to old_config only if it is right
                         old_config[var_name] = parse_to_yaml_value(var_value)
     except IOError:
-        raise
+        raise APIException(2002)
 
     return rename_old_fields(old_config)
 
@@ -59,13 +60,21 @@ def check_old_config(config: Dict) -> bool:
     :param config: Dictionary with values of old configuration
     :return: True if old configuration is OK, False otherwise
     """
-    checks = {'host': 'ips', 'port': 'numbers', 'basic_auth': 'yes_no_boolean',
-              'BehindProxyServer': 'yes_no_boolean',
-              'https': 'yes_no_boolean', 'https_key': 'paths', 'https_cert': 'paths',
-              'logs': 'names', 'cors': 'yes_no_boolean',
-              'cache_enabled': 'yes_no_boolean', 'cache_debug': 'yes_no_boolean',
-              'cache_time': 'numbers', 'use_only_authd': 'boolean',
-              'drop_privileges': 'boolean', 'experimental_features': 'boolean'
+    checks = {'host': validator._ips,
+              'port': validator._numbers,
+              'basic_auth': validator._yes_no_boolean,
+              'BehindProxyServer': validator._yes_no_boolean,
+              'https': validator._yes_no_boolean,
+              'https_key': validator._paths,
+              'https_cert': validator._paths,
+              'logs': validator._names,
+              'cors': validator._yes_no_boolean,
+              'cache_enabled': validator._yes_no_boolean,
+              'cache_debug': validator._yes_no_boolean,
+              'cache_time': validator._numbers,
+              'use_only_authd': validator._boolean,
+              'drop_privileges': validator._boolean,
+              'experimental_features': validator._boolean
              }
 
     # check old configuration values
@@ -145,7 +154,7 @@ def write_into_yaml_file(config: Dict):
         os.chown(common.api_config_path, common.ossec_uid, common.ossec_gid)
         os.chmod(common.api_config_path, 0o640)
     except IOError:
-        raise
+        raise APIException(2002)
 
 
 if __name__ == '__main__':
