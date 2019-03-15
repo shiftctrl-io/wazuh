@@ -1461,15 +1461,19 @@ components:
           - ipv4
           - ipv6
         dhcp:
-          type: string
-          description: DHCP status.
-          enum:
-          - enabled
-          - disabled
-          - unknown
-          - BOOTP
+          $ref: '#/components/schemas/DHCPStatus'
         agent_id:
           $ref: '#/components/schemas/AgentID'
+
+    DHCPStatus:
+      type: string
+      description: DHCP status.
+      enum:
+        - enabled
+        - disabled
+        - unknown
+        - BOOTP
+
 
     SyscollectorOS:
       type: object
@@ -1767,7 +1771,7 @@ components:
       description: Agent ID. All posible values since 000 onwards.
       required: true
       schema:
-        $ref: '#/components/schemas/AgentId'
+        $ref: '#/components/schemas/AgentID'
     agent_name:
       in: path
       name: agent_name
@@ -2147,7 +2151,7 @@ components:
       schema:
         type: array
         items:
-          $ref: '#/components/schemas/AgentId'
+          $ref: '#/components/schemas/AgentID'
     list_groups:
       in: query
       name: list_groups
@@ -2803,10 +2807,7 @@ components:
       name: dhcp
       description: Filters by network dhcp (enabled or disabled).
       schema:
-        type: string
-        enum:
-          - enabled
-          - disabled
+        $ref: '#/components/schemas/DHCPStatus'
     os_name:
       in: query
       name: os_name
@@ -3807,7 +3808,7 @@ paths:
                   description: List of agents ID.
                   type: array
                   items:
-                    $ref: '#/components/schemas/AgentId'
+                    $ref: '#/components/schemas/AgentID'
       responses:
         '200':
           description: 'Add multiple agents to a group'
