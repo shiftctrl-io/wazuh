@@ -12,7 +12,7 @@ from api import util
 
 class Rules(RulesFiles):
 
-    def __init__(self, id: int=None,
+    def __init__(self, id: int=None, file: str=None, path: str=None, status: str=None,
                  level: int=None, description: str=None, 
                  groups: List[str]=None, pci: List[str]=None,
                  gdpr: List[str]=None, details: Dict[str,str]=None):
@@ -34,6 +34,8 @@ class Rules(RulesFiles):
         :param details:
         :type details: Dict
         """
+        RulesFiles.__init__(self, file=file, path=path, status=status)
+
         self.new_swagger_types = {
             'id': int,
             'level': int,
