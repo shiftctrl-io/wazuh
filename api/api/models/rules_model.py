@@ -12,7 +12,7 @@ from api import util
 
 class Rules(Model):
 
-    def __init__(self, rules_files: RulesFiles=None, id: int=None,
+    def __init__(self, file_details: RulesFiles=None, id: int=None,
                  level: int=None, description: str=None, 
                  groups: List[str]=None, pci: List[str]=None,
                  gdpr: List[str]=None, details: Dict[str,str]=None):
@@ -35,7 +35,7 @@ class Rules(Model):
         :type details: Dict
         """
         self.swagger_types = {
-            'rules_files': RulesFiles,
+            'file_details': RulesFiles,
             'id': int,
             'level': int,
             'description': str,
@@ -56,7 +56,7 @@ class Rules(Model):
             'details': 'details'
         }
 
-        self._rules_files = rules_files
+        self._rules_files = file_details
         self._id = id
         self._level = level
         self._description = description
@@ -76,19 +76,19 @@ class Rules(Model):
         return util.deserialize_model(dikt, cls)
 
     @property
-    def rules_files(self) -> RulesFiles:
+    def file_details(self) -> RulesFiles:
         """
         :return: 
         :rtype: RulesFiles
         """
         return self._rules_files
 
-    @rules_files.setter
-    def rules_files(self, rules_files: RulesFiles):
+    @file_details.setter
+    def file_details(self, file_details: RulesFiles):
         """Error code
         :param rules_files:
         """
-        self._rules_files = rules_files
+        self._file_details = file_details
 
     @property
     def id(self) -> int:
