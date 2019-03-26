@@ -212,7 +212,19 @@ def get_rules_files(pretty=False, wait_for_complete=False, offset=0, limit=None,
                           )
     data = loop.run_until_complete(dapi.distribute_function())
 
-    return final, 200
+    rules_files_list = []
+    for rule_file in data['data']['items']:
+        rule_file = rule_file.to_dict()
+        #rule['rules_files'] = {'file': 'file', 'path': 'path', 'status': 'status'}
+        #rules_files = RulesFiles.from_dict(rule)
+        #return rules_files, 200
+        try:
+            rule_file = RulesFiles.from_dict(rule_file['file_details'])
+        except Exception as e:
+            return str(e)
+        return rule_file.to_dict(), 200
+
+    return rules_files_list, 200
 
 
 def get_rules_id(rule_id, pretty=False, wait_for_complete=False, offset=0, limit=None, sort=None, 
