@@ -62,8 +62,9 @@ class Rule:
 
 
     def to_dict(self):
-        return {'file': self.file, 'path': self.path, 'id': self.id, 'level': self.level, 'description': self.description,
-                'status': self.status, 'groups': self.groups, 'pci': self.pci, 'gdpr': self.gdpr, 'details': self.details}
+        return {'file_details': {'status': self.status, 'file': self.file, 'path': self.path},
+                'id': self.id, 'level': self.level, 'description': self.description,
+                'groups': self.groups, 'pci': self.pci, 'gdpr': self.gdpr, 'details': self.details}
 
 
     def set_group(self, group):

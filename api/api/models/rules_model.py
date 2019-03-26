@@ -46,7 +46,7 @@ class Rules(Model):
         }
 
         self.attribute_map = {
-            'rules_files': 'rules_files',
+            'file_details': 'file_details',
             'id': 'id',
             'level': 'level',
             'description': 'description',
@@ -56,7 +56,7 @@ class Rules(Model):
             'details': 'details'
         }
 
-        self._rules_files = file_details
+        self._file_details = file_details
         self._id = id
         self._level = level
         self._description = description
@@ -81,7 +81,7 @@ class Rules(Model):
         :return: 
         :rtype: RulesFiles
         """
-        return self._rules_files
+        return self._file_details
 
     @file_details.setter
     def file_details(self, file_details: RulesFiles):
