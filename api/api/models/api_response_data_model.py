@@ -21,16 +21,12 @@ class ApiResponseData(Model):
         :param confirmation_message: Confirmation message
         :type confirmation_essage: ConfirmationMessage 
         """
-
-        self._api_response = api_response
-        self._confirmation_message = confirmation_message
-
-        self.all_of = [self._api_response, self._confirmation_message]
+        self.all_of = [api_response, confirmation_message]
+        self.all_of_model = [ApiResponse, ConfirmationMessage]
 
     @classmethod
     def from_dict(cls, dikt) -> Dict:
         """Returns the dict as a model
-
         :param dikt: A dict.
         :type: dict
         :return: The Agent of this Agent.
@@ -44,15 +40,14 @@ class ApiResponseData(Model):
         :return: API response
         :rtype: ApiResponse
         """
-        return self._api_response
+        return self.all_of[0]
 
     @api_response.setter
     def api_response(self, api_response: ApiResponse):
         """Setter for api_response variable
-
         :param api_response: API response
         """
-        self._api_response = api_response
+        self.all_of[0] = api_response
 
     @property
     def confirmation_message(self) -> ConfirmationMessage:
@@ -60,13 +55,12 @@ class ApiResponseData(Model):
         :return: Confirmation message
         :rtype: ConfirmationMessage
         """
-        return self._confirmation_message
+        return self.all_of[1]
 
     @confirmation_message.setter
     def confirmation_message(self, confirmation_message: ConfirmationMessage):
         """Setter for confirmation_message variable
-
         :param confirmation_message: Confirmation message
         """
-        self._confirmation_message = confirmation_message
+        self.all_of[1] = confirmation_message
 
