@@ -10,9 +10,9 @@ from api.models.rules_files_model import RulesFiles
 from api import util
 
 
-class Rules(Model):
+class Rules(RulesFiles):
 
-    def __init__(self, rules_files: RulesFiles=None, id: int=None,
+    def __init__(self, id: int=None,
                  level: int=None, description: str=None, 
                  groups: List[str]=None, pci: List[str]=None,
                  gdpr: List[str]=None, details: Dict[str,str]=None):
@@ -34,8 +34,7 @@ class Rules(Model):
         :param details:
         :type details: Dict
         """
-        self.swagger_types = {
-            'rules_files': RulesFiles,
+        self.new_swagger_types = {
             'id': int,
             'level': int,
             'description': str,
@@ -45,8 +44,9 @@ class Rules(Model):
             'details': Dict[str,str]
         }
 
-        self.attribute_map = {
-            'rules_files': 'rules_files',
+        self.swagger_types = {**self.swagger_types, **self.new_swagger_types}
+
+        self.new_attribute_map = {
             'id': 'id',
             'level': 'level',
             'description': 'description',
@@ -56,7 +56,8 @@ class Rules(Model):
             'details': 'details'
         }
 
-        self._rules_files = rules_files
+        self.attribute_map = {**self.attribute_map, **self.new_attribute_map}
+
         self._id = id
         self._level = level
         self._description = description
@@ -74,21 +75,6 @@ class Rules(Model):
         :rtype: dict
         """
         return util.deserialize_model(dikt, cls)
-
-    @property
-    def rules_files(self) -> RulesFiles:
-        """
-        :return: 
-        :rtype: RulesFiles
-        """
-        return self._rules_files
-
-    @rules_files.setter
-    def rules_files(self, rules_files: RulesFiles):
-        """Error code
-        :param rules_files:
-        """
-        self._rules_files = rules_files
 
     @property
     def id(self) -> int:
