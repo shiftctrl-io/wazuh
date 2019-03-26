@@ -66,16 +66,10 @@ def get_rules(pretty=False, wait_for_complete=False, offset=0, limit=None, sort=
     rules_list = []
     for rule in data['data']['items']:
         rule = rule.to_dict()
-        #rule['rules_files'] = {'file': 'file', 'path': 'path', 'status': 'status'}
-        #rules_files = RulesFiles.from_dict(rule)
-        #return rules_files, 200
-        try:
-            rules = RulesModel.from_dict(rule)
-        except Exception as e:
-            return str(e)
-        return rules.to_dict(), 200
+        rules = RulesModel.from_dict(rule)
+        rules_list.append(rules.to_dict())
 
-    return rules_list, 200
+    return str(rules_list), 200
 
 
 def get_rules_groups(pretty=False, wait_for_complete=False, offset=0, limit=None, sort=None, 
@@ -214,19 +208,10 @@ def get_rules_files(pretty=False, wait_for_complete=False, offset=0, limit=None,
 
     rules_files_list = []
     for rule_file in data['data']['items']:
+        rule_file = RulesFiles.from_dict(rule_file)
+        rules_files_list.append(rule_file)
 
-        #rule_file = rule_file.to_dict()
-        #return str(rule_file), 200
-        #rule['rules_files'] = {'file': 'file', 'path': 'path', 'status': 'status'}
-        #rules_files = RulesFiles.from_dict(rule)
-        #return rules_files, 200
-        try:
-            rule_file = RulesFiles.from_dict(rule_file)
-        except Exception as e:
-            return str(e)
-        return rule_file.to_dict(), 200
-
-    return rules_files_list, 200
+    return str(rules_files_list), 200
 
 
 def get_rules_id(rule_id, pretty=False, wait_for_complete=False, offset=0, limit=None, sort=None, 
