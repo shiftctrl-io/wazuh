@@ -63,11 +63,19 @@ def run_command(body, pretty=False, wait_for_complete=False, agent_id='000'):
 
         data = loop.run_until_complete(dapi.distribute_function())
 
+        """
         api_response = ApiResponse.from_dict(data)
         confirmation_message = ConfirmationMessage.from_dict(data)
 
         api_response_data = ApiResponseData(api_response=api_response,
                                             confirmation_message=confirmation_message)
+        """
+        try:
+            api_response = ApiResponseData.from_dict(data)
+            #return api_response.data, 200
+            return api_response.to_dict(), 200
+        except Exception as e:
+            return str(e), 200
 
     except ValueError as e:
         return connexion.problem(400, 'Bad parameters', str(e), ext={'input_parameters': {'agent_id': agent_id, 'command': active_response_model.command}})

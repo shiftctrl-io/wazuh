@@ -31,26 +31,30 @@ class Model(object):
         """
         result = {}
 
-        for attr, _ in six.iteritems(self.swagger_types):
-            value = getattr(self, attr)
-            if isinstance(value, list):
-                result[attr] = list(map(
-                    lambda x: x.to_dict() if hasattr(x, "to_dict") else x,
-                    value
-                ))
-            elif hasattr(value, "to_dict"):
-                result[attr] = value.to_dict()
-            elif isinstance(value, dict):
-                result[attr] = dict(map(
-                    lambda item: (item[0], item[1].to_dict())
-                    if hasattr(item[1], "to_dict") else item,
-                    value.items()
-                ))
-            else:
-                result[attr] = value
+        if hasattr(self, 'swagger_types'):
+            for attr, _ in six.iteritems(self.swagger_types):
+                value = getattr(self, attr)
+                if isinstance(value, list):
+                    result[attr] = list(map(
+                        lambda x: x.to_dict() if hasattr(x, "to_dict") else x,
+                        value
+                    ))
+                elif hasattr(value, "to_dict"):
+                    result[attr] = value.to_dict()
+                elif isinstance(value, dict):
+                    result[attr] = dict(map(
+                        lambda item: (item[0], item[1].to_dict())
+                        if hasattr(item[1], "to_dict") else item,
+                        value.items()
+                    ))
+                else:
+                    result[attr] = value
 
-        for model in self.all_of:
-            result.update(model.to_dict())
+        if hasattr(self, 'all_of_model'):
+            for model in self.all_of_model:
+                #a = model()
+                #result['a'] = a.swagger_types
+                #result.update(model.to_dict(model.swagger_types))
 
         return result
 

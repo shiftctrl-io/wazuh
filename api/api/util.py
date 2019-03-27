@@ -103,12 +103,21 @@ def deserialize_model(data, klass):
     """
     instance = klass()
 
-    if not hasattr(instance, 'swagger_types') and not hasattr(instance, 'all_of_models'):
+    if not hasattr(instance, 'swagger_types') and not hasattr(instance, 'all_of_model'):
         return data
 
-    if hasattr(instance, 'all_of_models'):
-        for model_class in instance.all_of_models:
-            instance.all_of.append(deserialize_model(data, model_class))
+    if hasattr(instance, 'all_of_model'):
+        for model_class in instance.all_of_model:
+            #instance.all_of.append(deserialize_model(data, model_class))
+            #deserialize_model(data, model_class)
+            instance_child = model_class()
+            for attr, attr_type in six.iteritems(instance_child.swagger_types):
+                if data is not None \
+                        and instance_child.attribute_map[attr] in data \
+                        and isinstance(data, (list, dict)):
+                    value = data[instance_child.attribute_map[attr]]
+                    setattr(instance, attr, _deserialize(value, attr_type))
+
     else:
         for attr, attr_type in six.iteritems(instance.swagger_types):
             if data is not None \
