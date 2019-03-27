@@ -103,10 +103,10 @@ def deserialize_model(data, klass):
     """
     instance = klass()
 
-    if not instance.swagger_types and not instance.all_of_models:
+    if not hasattr(instance, 'swagger_types') and not hasattr(instance, 'all_of_models'):
         return data
 
-    if instance.all_of_models:
+    if hasattr(instance, 'all_of_models'):
         for model_class in instance.all_of_models:
             instance.all_of.append(deserialize_model(data, model_class))
     else:

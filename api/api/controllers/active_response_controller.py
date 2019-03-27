@@ -20,10 +20,12 @@ loop = asyncio.get_event_loop()
 logger = logging.getLogger('wazuh.active_response_controller')
 
 
-def run_command(pretty=False, wait_for_complete=False, agent_id='000'):
+def run_command(body, pretty=False, wait_for_complete=False, agent_id='000'):
     """
     Runs an Active Response command on a specified agent
 
+    :param body: Body parameters
+    :type body: dict
     :param pretty: Show results in human-readable format
     :type pretty: bool
     :param wait_for_complete: Disable timeout response
@@ -39,10 +41,9 @@ def run_command(pretty=False, wait_for_complete=False, agent_id='000'):
 
     :rtype: dict
     """
-
     # get body parameters
     if connexion.request.is_json:
-        active_response_model = ActiveResponse.from_dict(connexion.request.get_json())
+        active_response_model = ActiveResponse.from_dict(body)
     else:
         return ('Error getting body parameters. Please, '
                 'follow our guide: https://documentation.wazuh.com/current/user-manual/api/reference.html#active-response',
@@ -61,6 +62,7 @@ def run_command(pretty=False, wait_for_complete=False, agent_id='000'):
                               )
 
         data = loop.run_until_complete(dapi.distribute_function())
+
         api_response = ApiResponse.from_dict(data)
         confirmation_message = ConfirmationMessage.from_dict(data)
 
