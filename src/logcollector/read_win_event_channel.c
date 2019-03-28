@@ -437,16 +437,27 @@ void send_channel_event(EVT_HANDLE evt, os_channel *channel)
     char *msg_from_prov = NULL;
     char *xml_event = NULL;
     char *filtered_msg = NULL;
+    char *category_field = NULL;
+    char *subcategory_field = NULL;
+    char *changes_field = NULL;
     char *avoid_dup = NULL;
+    char *find_next_string = NULL;
+    char *find_next_character = NULL;
     char *beg_prov = NULL;
     char *end_prov = NULL;
     char *find_prov = NULL;
-    size_t num;
+    char *category = NULL;
+    char *subcategory = NULL;
+    char *changes = NULL;
+    size_t size;
 
     cJSON *event_json = cJSON_CreateObject();
 
     os_malloc(OS_MAXSTR, filtered_msg);
     os_malloc(OS_MAXSTR, provider_name);
+    os_malloc(OS_MAXSTR, category_field);
+    os_malloc(OS_MAXSTR, subcategory_field);
+    os_malloc(OS_MAXSTR, changes_field);
 
     result = EvtRender(NULL,
                        evt,
@@ -495,15 +506,15 @@ void send_channel_event(EVT_HANDLE evt, os_channel *channel)
             end_prov = strchr(beg_prov+1, '\'');
 
             if (end_prov){
-                num = end_prov - beg_prov - 1;
+                size = end_prov - beg_prov - 1;
 
-                if(num > OS_MAXSTR - 1){
+                if(size > OS_MAXSTR - 1){
                     mwarn("The event message has exceeded the maximum size.");
                     goto cleanup;
                 }
 
-                memcpy(provider_name, beg_prov+1, num);
-                provider_name[num] = '\0';
+                memcpy(provider_name, beg_prov+1, size);
+                provider_name[size] = '\0';
                 find_prov = '\0';
                 beg_prov = '\0';
                 end_prov = '\0';
@@ -523,9 +534,9 @@ void send_channel_event(EVT_HANDLE evt, os_channel *channel)
             avoid_dup = strchr(msg_from_prov, '\r');
 
             if (avoid_dup){
-                num = avoid_dup - msg_from_prov;
-                memcpy(filtered_msg, msg_from_prov, num);
-                filtered_msg[num] = '\0';
+                size = avoid_dup - msg_from_prov;
+                memcpy(filtered_msg, msg_from_prov, size);
+                filtered_msg[size] = '\0';
                 cJSON_AddStringToObject(event_json, "Message", filtered_msg);
             } else {
                 win_format_event_string(msg_from_prov);
@@ -533,9 +544,69 @@ void send_channel_event(EVT_HANDLE evt, os_channel *channel)
                 cJSON_AddStringToObject(event_json, "Message", msg_from_prov);
             }
             avoid_dup = '\0';
+
+            // Category, Subcategory and AuditPolicyChanges
+            category = strstr(msg_from_prov, "Category:");
+            subcategory = strstr(msg_from_prov, "Subcategory:");
+            changes = strstr(msg_from_prov, "Changes:");
+
+            if (category && subcategory && changes){
+                // Find next '\r\n' after category and fill the field
+                find_next_string = strchr(category, '\r');
+
+                if(find_next_string){
+                    find_next_character = strchr(category, ':');
+
+                    if (find_next_character) {
+                        size = find_next_string - find_next_character + 1;
+                        memcpy(category_field, find_next_character + 1, size);
+                        category_field[size] = '\0';
+
+                        cJSON_AddStringToObject(event_json, "Category", category_field);
+                        os_free(category_field);
+                    }
+                }
+
+                // Save subcategory field
+                find_next_string = strchr(subcategory, '\r');
+
+                if(find_next_string){
+                    find_next_character = strchr(subcategory, ':');
+
+                    if (find_next_character) {
+                        size = find_next_string - find_next_character + 1;
+                        memcpy(subcategory_field, find_next_character + 1, size);
+                        subcategory_field[size] = '\0';
+
+                        cJSON_AddStringToObject(event_json, "Subcategory", subcategory_field);
+                        os_free(subcategory_field);
+                    }
+                }
+
+                // Save changes field
+                find_next_character = strchr(changes, ':');
+
+                if (find_next_character) {
+                    size = strlen(find_next_character);
+                    memcpy(changes_field, find_next_character + 1, size);
+                    changes_field[size] = '\0';
+
+                    cJSON_AddStringToObject(event_json, "Changes", changes_field);
+                    os_free(changes_field);
+                }
+
+                category = '\0';
+                subcategory = '\0';
+                changes = '\0';
+                find_next_string = '\0';
+                find_next_character = '\0';
+            }
         }
     } else {
         cJSON_AddStringToObject(event_json, "Message", "No message");
+        cJSON_AddStringToObject(event_json, "Category", "Not defined");
+        cJSON_AddStringToObject(event_json, "Subcategory", "Not defined");
+        cJSON_AddStringToObject(event_json, "Changes", "Not defined");
     }
 
     win_format_event_string(xml_event);

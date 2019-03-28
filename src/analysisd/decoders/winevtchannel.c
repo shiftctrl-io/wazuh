@@ -72,6 +72,35 @@ char *replace_win_format(char *str){
     return ret2;
 }
 
+
+char *escape_windows_format_characters(char *str){
+    char *ret1 = NULL;
+    char *ret2 = NULL;
+    char *ret3 = NULL;
+    char *end = NULL;
+    int spaces = 0;
+
+    // Remove undesired characters from the string
+    ret1 = wstr_replace(str, "\\t", "");
+    ret2 = wstr_replace(ret1, "\\r", "");
+    ret3 = wstr_replace(ret2, "\\n", "");
+
+    // Remove trailing spaces at the end of the string
+    end = ret3 + strlen(ret3) - 1;
+    while(end > ret3 && isspace((unsigned char)*end)) {
+        end--;
+        spaces = 1;
+    }
+
+    if(spaces)
+        end[1] = '\0';
+
+    os_free(ret1);
+    os_free(ret2);
+
+    return ret3;
+}
+
 /* Special decoder for Windows eventchannel */
 int DecodeWinevt(Eventinfo *lf){
     OS_XML xml;
@@ -82,6 +111,8 @@ int DecodeWinevt(Eventinfo *lf){
     cJSON *json_system_in = cJSON_CreateObject();
     cJSON *json_eventdata_in = cJSON_CreateObject();
     cJSON *json_extra_in = cJSON_CreateObject();
+    cJSON *parsed_msg;
+    cJSON *audit_policy_management;
     int level_n;
     unsigned long long int keywords_n;
     XML_NODE node, child;
@@ -102,6 +133,8 @@ int DecodeWinevt(Eventinfo *lf){
     char *severityValue = NULL;
     char *join_data = NULL;
     char *join_data2 = NULL;
+    char *get_field = NULL;
+    char *escaped_field = NULL;
     char aux = 0;
     lf->decoder_info = winevt_decoder;
 
@@ -243,8 +276,18 @@ int DecodeWinevt(Eventinfo *lf){
                                             && strcmp(child_attr[p]->content, "-") != 0) {
                                         filtered_string = replace_win_format(child_attr[p]->content);
                                         *child_attr[p]->values[l] = tolower(*child_attr[p]->values[l]);
-                                        cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
-                                        os_free(filtered_string);
+
+                                        // Ignore category ID
+                                        if (!strcmp(child_attr[p]->values[l], "categoryId")){
+                                        // Ignore subcategory ID
+                                        } else if (!strcmp(child_attr[p]->values[l], "subcategoryId")){
+                                        // Ignore subcategory Guid
+                                        } else if (!strcmp(child_attr[p]->values[l], "auditPolicyChanges")){
+                                        // Get other fields
+                                        } else {
+                                            cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
+                                            os_free(filtered_string);
+                                        }
                                         break;
                                     } else if(child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
                                             && strcmp(child_attr[p]->content, "-") != 0){
@@ -349,6 +392,33 @@ int DecodeWinevt(Eventinfo *lf){
             }
         }
         xml_init = 1;
+    }
+
+    parsed_msg = cJSON_Parse(lf->log);
+    audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Category");
+
+    if(audit_policy_management){
+        get_field = cJSON_PrintUnformatted(audit_policy_management);
+        escaped_field = escape_windows_format_characters(get_field);
+        cJSON_AddStringToObject(json_eventdata_in, "category", escaped_field);
+        os_free(escaped_field);
+        os_free(get_field);
+    }
+    audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Subcategory");
+    if(audit_policy_management){
+        get_field = cJSON_PrintUnformatted(audit_policy_management);
+        escaped_field = escape_windows_format_characters(get_field);
+        cJSON_AddStringToObject(json_eventdata_in, "subcategory", escaped_field);
+        os_free(escaped_field);
+        os_free(get_field);
+    }
+    audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Changes");
+    if(audit_policy_management){
+        get_field = cJSON_PrintUnformatted(audit_policy_management);
+        escaped_field = escape_windows_format_characters(get_field);
+        cJSON_AddStringToObject(json_eventdata_in, "changes", escaped_field);
+        os_free(escaped_field);
+        os_free(get_field);
     }
 
     find_msg = strstr(lf->log, "Message");
@@ -462,6 +532,7 @@ cleanup:
     if (xml_init){
         OS_ClearXML(&xml);
     }
+    cJSON_Delete(parsed_msg);
     cJSON_Delete(final_event);
 
     return (ret_val);
