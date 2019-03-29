@@ -50,16 +50,18 @@ void WinevtInit(){
 char *replace_win_format(char *str){
     char *ret1 = NULL;
     char *ret2 = NULL;
+    char *ret3 = NULL;
     char *end = NULL;
     int spaces = 0;
 
     // Remove undesired characters from the string
     ret1 = wstr_replace(str, "\\\"", "\"");
     ret2 = wstr_replace(ret1, "\\\\", "\\");
+    ret3 = wstr_replace(ret2, "\"", "");
 
     // Remove trailing spaces at the end of the string
-    end = ret2 + strlen(ret2) - 1;
-    while(end > ret2 && isspace((unsigned char)*end)) {
+    end = ret3 + strlen(ret3) - 1;
+    while(end > ret3 && isspace((unsigned char)*end)) {
         end--;
         spaces = 1;
     }
@@ -68,8 +70,9 @@ char *replace_win_format(char *str){
         end[1] = '\0';
 
     os_free(ret1);
+    os_free(ret2);
 
-    return ret2;
+    return ret3;
 }
 
 
@@ -113,94 +116,39 @@ int DecodeWinevt(Eventinfo *lf){
     cJSON *json_extra_in = cJSON_CreateObject();
     cJSON *parsed_msg;
     cJSON *audit_policy_management;
+    cJSON *event;
+    cJSON *msg_from_prov;
     int level_n;
     unsigned long long int keywords_n;
     XML_NODE node, child;
-    int num;
     char *extra = NULL;
     char *filtered_string = NULL;
     char *level = NULL;
     char *keywords = NULL;
-    char *msg_from_prov = NULL;
     char *returned_event = NULL;
-    char *event = NULL;
-    char *find_event = NULL;
-    char *end_event = NULL;
-    char *real_end = NULL;
-    char *find_msg = NULL;
-    char *end_msg = NULL;
-    char *next = NULL;
     char *severityValue = NULL;
     char *join_data = NULL;
     char *join_data2 = NULL;
     char *get_field = NULL;
     char *escaped_field = NULL;
-    char aux = 0;
+    char *print_field = NULL;
     lf->decoder_info = winevt_decoder;
 
-    os_calloc(OS_MAXSTR, sizeof(char), event);
-    os_calloc(OS_MAXSTR, sizeof(char), msg_from_prov);
     os_calloc(OS_MAXSTR, sizeof(char), join_data);
 
-    find_event = strstr(lf->log, "Event");
+    parsed_msg = cJSON_Parse(lf->log);
 
-    if(find_event){
-        find_event = find_event + 8;
-        end_event = strchr(find_event, '"');
-
-        if(end_event){
-            real_end = end_event;
-            aux = *(end_event + 1);
-
-            if(aux != '}' && aux != ','){
-                while(1){
-                    next = real_end + 1;
-                    real_end = strchr(next,'"');
-
-                    if(real_end) {
-                        aux = *(real_end + 1);
-                        if (aux == '}' || aux == ','){
-                            end_event = real_end;
-                            break;
-                        }
-                    } else {
-                        mdebug1("Malformed 'Event' field");
-                        break;
-                    }
-                }
-            }
-
-            num = end_event - find_event;
-
-            if(num > OS_MAXSTR - 1){
-                mwarn("The event message has exceeded the maximum size.");
-                cJSON_Delete(json_system_in);
-                cJSON_Delete(json_event);
-                cJSON_Delete(json_eventdata_in);
-                cJSON_Delete(json_extra_in);
-                ret_val = 1;
-                goto cleanup;
-            }
-
-            memcpy(event, find_event, num);
-            event[num] = '\0';
-            find_event = NULL;
-            end_event = NULL;
-            real_end = NULL;
-            next = NULL;
-            aux = 0;
-        }
-    } else {
-        mdebug1("Malformed JSON output received. No 'Event' field found");
-    }
+    event = cJSON_GetObjectItem(parsed_msg, "Event");
 
     if(event){
-        if (OS_ReadXMLString(event, &xml) < 0){
+        print_field = cJSON_PrintUnformatted(event);
+
+        if (OS_ReadXMLString(print_field, &xml) < 0){
             first_time++;
             if (first_time > 1){
-                mdebug2("Could not read XML string: '%s'", event);
+                mdebug2("Could not read XML string: '%s'", print_field);
             } else {
-                mwarn("Could not read XML string: '%s'", event);
+                mwarn("Could not read XML string: '%s'", print_field);
             }
         } else {
             node = OS_GetElementsbyNode(&xml, NULL);
@@ -286,8 +234,8 @@ int DecodeWinevt(Eventinfo *lf){
                                         // Get other fields
                                         } else {
                                             cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
-                                            os_free(filtered_string);
                                         }
+                                        os_free(filtered_string);
                                         break;
                                     } else if(child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
                                             && strcmp(child_attr[p]->content, "-") != 0){
@@ -391,85 +339,48 @@ int DecodeWinevt(Eventinfo *lf){
                 cJSON_AddStringToObject(json_system_in, "severityValue", severityValue);
             }
         }
+        os_free(print_field);
         xml_init = 1;
     }
 
-    parsed_msg = cJSON_Parse(lf->log);
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Category");
-
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         escaped_field = escape_windows_format_characters(get_field);
-        cJSON_AddStringToObject(json_eventdata_in, "category", escaped_field);
+        filtered_string = replace_win_format(escaped_field);
+        cJSON_AddStringToObject(json_eventdata_in, "category", filtered_string);
         os_free(escaped_field);
         os_free(get_field);
+        os_free(filtered_string);
     }
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Subcategory");
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         escaped_field = escape_windows_format_characters(get_field);
-        cJSON_AddStringToObject(json_eventdata_in, "subcategory", escaped_field);
+        filtered_string = replace_win_format(escaped_field);
+        cJSON_AddStringToObject(json_eventdata_in, "subcategory", filtered_string);
         os_free(escaped_field);
         os_free(get_field);
+        os_free(filtered_string);
     }
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Changes");
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         escaped_field = escape_windows_format_characters(get_field);
-        cJSON_AddStringToObject(json_eventdata_in, "changes", escaped_field);
+        filtered_string = replace_win_format(escaped_field);
+        cJSON_AddStringToObject(json_eventdata_in, "changes", filtered_string);
         os_free(escaped_field);
         os_free(get_field);
+        os_free(filtered_string);
     }
 
-    find_msg = strstr(lf->log, "Message");
-    if(find_msg){
-        find_msg = find_msg + 10;
-        end_msg = strchr(find_msg,'\"');
-
-        if(end_msg){
-            real_end = end_msg;
-            aux = *(end_msg + 1);
-
-            if(aux != '}' && aux != ','){
-                while(1){
-                    next = real_end + 1;
-                    real_end = strchr(next,'"');
-
-                    if(real_end){
-                        aux = *(real_end + 1);
-                        if (aux == '}' || aux == ','){
-                            end_msg = real_end;
-                            break;
-                        }
-                    } else {
-                        mdebug1("Malformed 'Message' field");
-                        break;
-                    }
-                }
-            }
-
-            num = end_msg - find_msg;
-            if(num > OS_MAXSTR - 1){
-                cJSON_Delete(json_system_in);
-                cJSON_Delete(json_event);
-                cJSON_Delete(json_eventdata_in);
-                cJSON_Delete(json_extra_in);
-                mwarn("The event message has exceeded the maximum size.");
-                ret_val = 1;
-                goto cleanup;
-            }
-            memcpy(msg_from_prov, find_msg, num);
-            msg_from_prov[num] = '\0';
-            filtered_string = replace_win_format(msg_from_prov);
-            cJSON_AddStringToObject(json_system_in, "message", filtered_string);
-            os_free(filtered_string);
-
-            find_msg = NULL;
-            end_msg = NULL;
-            real_end = NULL;
-            next = NULL;
-            aux = 0;
-        }
+    msg_from_prov = cJSON_GetObjectItem(parsed_msg, "Message");
+    if(msg_from_prov){
+        print_field = cJSON_PrintUnformatted(msg_from_prov);
+        filtered_string = replace_win_format(print_field);
+        cJSON_AddStringToObject(json_system_in, "message", filtered_string);
+        os_free(filtered_string);
+        os_free(print_field);
     } else {
         mdebug1("Malformed JSON output received. No 'Message' field found");
         cJSON_AddStringToObject(json_system_in, "message", "No message");
@@ -519,15 +430,11 @@ int DecodeWinevt(Eventinfo *lf){
 
     JSON_Decoder_Exec(lf, NULL);
 
-cleanup:
     os_free(level);
-    os_free(event);
     os_free(extra);
     os_free(join_data);
     os_free(join_data2);
-    os_free(filtered_string);
     os_free(keywords);
-    os_free(msg_from_prov);
     os_free(returned_event);
     if (xml_init){
         OS_ClearXML(&xml);
