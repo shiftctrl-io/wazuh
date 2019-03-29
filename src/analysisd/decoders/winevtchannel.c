@@ -47,21 +47,32 @@ void WinevtInit(){
     mdebug1("WinevtInit completed.");
 }
 
-char *replace_win_format(char *str){
+char *replace_win_format(char *str, int replace_characters){
     char *ret1 = NULL;
     char *ret2 = NULL;
     char *ret3 = NULL;
+    char *ret4 = NULL;
+    char *ret5 = NULL;
+    char *ret6 = NULL;
     char *end = NULL;
     int spaces = 0;
 
+    if (replace_characters) {
+        ret1 = wstr_replace(str, "\\t", "");
+        ret2 = wstr_replace(ret1, "\\r", "");
+        ret3 = wstr_replace(ret2, "\\n", "");
+    } else {
+        os_strdup(str, ret3);
+    }
+
     // Remove undesired characters from the string
-    ret1 = wstr_replace(str, "\\\"", "\"");
-    ret2 = wstr_replace(ret1, "\\\\", "\\");
-    ret3 = wstr_replace(ret2, "\"", "");
+    ret4 = wstr_replace(ret3, "\\\"", "\"");
+    ret5 = wstr_replace(ret4, "\\\\", "\\");
+    ret6 = wstr_replace(ret5, "\"", "");
 
     // Remove trailing spaces at the end of the string
-    end = ret3 + strlen(ret3) - 1;
-    while(end > ret3 && isspace((unsigned char)*end)) {
+    end = ret6 + strlen(ret6) - 1;
+    while(end > ret6 && isspace((unsigned char)*end)) {
         end--;
         spaces = 1;
     }
@@ -71,37 +82,11 @@ char *replace_win_format(char *str){
 
     os_free(ret1);
     os_free(ret2);
+    os_free(ret3);
+    os_free(ret4);
+    os_free(ret5);
 
-    return ret3;
-}
-
-
-char *escape_windows_format_characters(char *str){
-    char *ret1 = NULL;
-    char *ret2 = NULL;
-    char *ret3 = NULL;
-    char *end = NULL;
-    int spaces = 0;
-
-    // Remove undesired characters from the string
-    ret1 = wstr_replace(str, "\\t", "");
-    ret2 = wstr_replace(ret1, "\\r", "");
-    ret3 = wstr_replace(ret2, "\\n", "");
-
-    // Remove trailing spaces at the end of the string
-    end = ret3 + strlen(ret3) - 1;
-    while(end > ret3 && isspace((unsigned char)*end)) {
-        end--;
-        spaces = 1;
-    }
-
-    if(spaces)
-        end[1] = '\0';
-
-    os_free(ret1);
-    os_free(ret2);
-
-    return ret3;
+    return ret6;
 }
 
 /* Special decoder for Windows eventchannel */
@@ -130,7 +115,6 @@ int DecodeWinevt(Eventinfo *lf){
     char *join_data = NULL;
     char *join_data2 = NULL;
     char *get_field = NULL;
-    char *escaped_field = NULL;
     char *print_field = NULL;
     lf->decoder_info = winevt_decoder;
 
@@ -222,7 +206,7 @@ int DecodeWinevt(Eventinfo *lf){
                                 for (l = 0; child_attr[p]->attributes[l]; l++) {
                                     if (!strcmp(child_attr[p]->attributes[l], "Name") && strcmp(child_attr[p]->content, "(NULL)") != 0
                                             && strcmp(child_attr[p]->content, "-") != 0) {
-                                        filtered_string = replace_win_format(child_attr[p]->content);
+                                        filtered_string = replace_win_format(child_attr[p]->content,0);
                                         *child_attr[p]->values[l] = tolower(*child_attr[p]->values[l]);
 
                                         // Ignore category ID
@@ -239,7 +223,7 @@ int DecodeWinevt(Eventinfo *lf){
                                         break;
                                     } else if(child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
                                             && strcmp(child_attr[p]->content, "-") != 0){
-                                        filtered_string = replace_win_format(child_attr[p]->content);
+                                        filtered_string = replace_win_format(child_attr[p]->content, 0);
                                         mdebug2("Unexpected attribute at EventData (%s).", child_attr[p]->attributes[j]);
                                         *child_attr[p]->values[l] = tolower(*child_attr[p]->values[l]);
                                         cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
@@ -248,7 +232,7 @@ int DecodeWinevt(Eventinfo *lf){
                                 }
                             } else if (child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
                                     && strcmp(child_attr[p]->content, "-") != 0 && strlen(child_attr[p]->content) > 0){
-                                filtered_string = replace_win_format(child_attr[p]->content);
+                                filtered_string = replace_win_format(child_attr[p]->content, 0);
 
                                 if (strcmp(filtered_string, "") && !strcmp(child_attr[p]->element, "Data")){
                                     if(strcmp(join_data, "")){
@@ -276,7 +260,7 @@ int DecodeWinevt(Eventinfo *lf){
 
                             while(extra_data_child && extra_data_child[h]){
                                 if(strcmp(extra_data_child[h]->content, "(NULL)") != 0 && strcmp(extra_data_child[h]->content, "-") != 0 && strlen(extra_data_child[h]->content) > 0){
-                                    filtered_string = replace_win_format(extra_data_child[h]->content);
+                                    filtered_string = replace_win_format(extra_data_child[h]->content, 0);
                                     *extra_data_child[h]->element = tolower(*extra_data_child[h]->element);
                                     cJSON_AddStringToObject(json_extra_in, extra_data_child[h]->element, filtered_string);
                                     os_free(filtered_string);
@@ -346,30 +330,24 @@ int DecodeWinevt(Eventinfo *lf){
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Category");
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
-        escaped_field = escape_windows_format_characters(get_field);
-        filtered_string = replace_win_format(escaped_field);
+        filtered_string = replace_win_format(get_field, 1);
         cJSON_AddStringToObject(json_eventdata_in, "category", filtered_string);
-        os_free(escaped_field);
         os_free(get_field);
         os_free(filtered_string);
     }
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Subcategory");
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
-        escaped_field = escape_windows_format_characters(get_field);
-        filtered_string = replace_win_format(escaped_field);
+        filtered_string = replace_win_format(get_field, 1);
         cJSON_AddStringToObject(json_eventdata_in, "subcategory", filtered_string);
-        os_free(escaped_field);
         os_free(get_field);
         os_free(filtered_string);
     }
     audit_policy_management = cJSON_GetObjectItem(parsed_msg, "Changes");
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
-        escaped_field = escape_windows_format_characters(get_field);
-        filtered_string = replace_win_format(escaped_field);
+        filtered_string = replace_win_format(get_field, 1);
         cJSON_AddStringToObject(json_eventdata_in, "changes", filtered_string);
-        os_free(escaped_field);
         os_free(get_field);
         os_free(filtered_string);
     }
@@ -377,7 +355,7 @@ int DecodeWinevt(Eventinfo *lf){
     msg_from_prov = cJSON_GetObjectItem(parsed_msg, "Message");
     if(msg_from_prov){
         print_field = cJSON_PrintUnformatted(msg_from_prov);
-        filtered_string = replace_win_format(print_field);
+        filtered_string = replace_win_format(print_field, 0);
         cJSON_AddStringToObject(json_system_in, "message", filtered_string);
         os_free(filtered_string);
         os_free(print_field);
