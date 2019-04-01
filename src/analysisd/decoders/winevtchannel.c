@@ -209,20 +209,7 @@ int DecodeWinevt(Eventinfo *lf){
                                         filtered_string = replace_win_format(child_attr[p]->content,0);
                                         *child_attr[p]->values[l] = tolower(*child_attr[p]->values[l]);
 
-<<<<<<< HEAD
                                         cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
-=======
-                                        // Ignore category ID
-                                        if (!strcmp(child_attr[p]->values[l], "categoryId")){
-                                        // Ignore subcategory ID
-                                        } else if (!strcmp(child_attr[p]->values[l], "subcategoryId")){
-                                        // Ignore subcategory Guid
-                                        } else if (!strcmp(child_attr[p]->values[l], "auditPolicyChanges")){
-                                        // Get other fields
-                                        } else {
-                                            cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
-                                        }
->>>>>>> 6041c20d186eb61c95ba1c74ec12988229b1410d
                                         os_free(filtered_string);
                                         break;
                                     } else if(child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
@@ -235,11 +222,7 @@ int DecodeWinevt(Eventinfo *lf){
                                     }
                                 }
                             } else if (child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
-<<<<<<< HEAD
-                                    && strcmp(child_attr[p]->content, "-") != 0){
-=======
                                     && strcmp(child_attr[p]->content, "-") != 0 && strlen(child_attr[p]->content) > 0){
->>>>>>> 6041c20d186eb61c95ba1c74ec12988229b1410d
                                 filtered_string = replace_win_format(child_attr[p]->content, 0);
 
                                 if (strcmp(filtered_string, "") && !strcmp(child_attr[p]->element, "Data")){
