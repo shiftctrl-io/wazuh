@@ -604,9 +604,6 @@ void send_channel_event(EVT_HANDLE evt, os_channel *channel)
         }
     } else {
         cJSON_AddStringToObject(event_json, "Message", "No message");
-        cJSON_AddStringToObject(event_json, "Category", "Not defined");
-        cJSON_AddStringToObject(event_json, "Subcategory", "Not defined");
-        cJSON_AddStringToObject(event_json, "Changes", "Not defined");
     }
 
     win_format_event_string(xml_event);
