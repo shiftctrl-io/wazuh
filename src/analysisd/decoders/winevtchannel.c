@@ -128,11 +128,11 @@ int DecodeWinevt(Eventinfo *lf){
         print_field = cJSON_PrintUnformatted(event);
 
         if (OS_ReadXMLString(print_field, &xml) < 0){
-            first_time++;
-            if (first_time > 1){
+            if (first_time == 1){
                 mdebug2("Could not read XML string: '%s'", print_field);
             } else {
                 mwarn("Could not read XML string: '%s'", print_field);
+                first_time = 1;
             }
         } else {
             node = OS_GetElementsbyNode(&xml, NULL);
