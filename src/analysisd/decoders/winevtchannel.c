@@ -209,16 +209,7 @@ int DecodeWinevt(Eventinfo *lf){
                                         filtered_string = replace_win_format(child_attr[p]->content,0);
                                         *child_attr[p]->values[l] = tolower(*child_attr[p]->values[l]);
 
-                                        // Ignore category ID
-                                        if (!strcmp(child_attr[p]->values[l], "categoryId")){
-                                        // Ignore subcategory ID
-                                        } else if (!strcmp(child_attr[p]->values[l], "subcategoryId")){
-                                        // Ignore subcategory Guid
-                                        } else if (!strcmp(child_attr[p]->values[l], "auditPolicyChanges")){
-                                        // Get other fields
-                                        } else {
-                                            cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
-                                        }
+                                        cJSON_AddStringToObject(json_eventdata_in, child_attr[p]->values[l], filtered_string);
                                         os_free(filtered_string);
                                         break;
                                     } else if(child_attr[p]->content && strcmp(child_attr[p]->content, "(NULL)") != 0
@@ -331,6 +322,7 @@ int DecodeWinevt(Eventinfo *lf){
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         filtered_string = replace_win_format(get_field, 1);
+        cJSON_DetachItemFromObject(json_eventdata_in, "categoryId");
         cJSON_AddStringToObject(json_eventdata_in, "category", filtered_string);
         os_free(get_field);
         os_free(filtered_string);
@@ -339,6 +331,7 @@ int DecodeWinevt(Eventinfo *lf){
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         filtered_string = replace_win_format(get_field, 1);
+        cJSON_DetachItemFromObject(json_eventdata_in, "subcategoryId");
         cJSON_AddStringToObject(json_eventdata_in, "subcategory", filtered_string);
         os_free(get_field);
         os_free(filtered_string);
@@ -347,6 +340,7 @@ int DecodeWinevt(Eventinfo *lf){
     if(audit_policy_management){
         get_field = cJSON_PrintUnformatted(audit_policy_management);
         filtered_string = replace_win_format(get_field, 1);
+        cJSON_DetachItemFromObject(json_eventdata_in, "auditPolicyChanges");
         cJSON_AddStringToObject(json_eventdata_in, "changes", filtered_string);
         os_free(get_field);
         os_free(filtered_string);
