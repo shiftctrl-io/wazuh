@@ -95,6 +95,7 @@ void sdb_init(_sdb *localsdb, OSDecoderInfo *fim_decoder) {
     fim_decoder->fields[SK_PPID] = "ppid";
     fim_decoder->fields[SK_PROC_ID] = "process_id";
     fim_decoder->fields[SK_TAG] = "tag";
+    fim_decoder->fields[SK_SYM_PATH] = "symbolic_path";
 }
 
 // Initialize the necessary information to process the syscheck information
@@ -140,9 +141,9 @@ int DecodeSyscheck(Eventinfo *lf, _sdb *sdb)
      * or
      * 'checksum'!'extradata' 'filename'
      * or
-     *                                             |v2.1       v3.4   |v3.4         v3.6  |
-     *                                             |->         |->    |->           |->   |
-     * "size:permision:uid:gid:md5:sha1:uname:gname:mtime:inode:sha256!w:h:o:d:a:t:a:tags filename\nreportdiff"
+     *                                             |v2.1       v3.4   |v3.4         |v3.6 |v3.9
+     *                                             |->         |->    |->           |->   |->
+     * "size:permision:uid:gid:md5:sha1:uname:gname:mtime:inode:sha256!w:h:o:d:a:t:a:tags:symbolic_path filename\nreportdiff"
      *  ^^^^^^^^^^^^^^^^^^^^^^^^^^^checksum^^^^^^^^^^^^^^^^^^^^^^^^^^^!^^^^extradata^^^^^ filename\n^^^diff^^^'
      */
     sdb_clean(sdb);

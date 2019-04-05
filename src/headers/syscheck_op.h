@@ -106,6 +106,7 @@ typedef enum sk_syscheck {
     SK_PPID,
     SK_PROC_ID,
     SK_TAG,
+    SK_SYM_PATH,
     SK_NFIELDS
 } sk_syscheck;
 
@@ -169,6 +170,7 @@ typedef struct sk_sum_t {
     long mtime;
     long inode;
     char *tag;
+    char *symbolic_path;
     sk_sum_wdata wdata;
     int changes;
     long date_alert;
